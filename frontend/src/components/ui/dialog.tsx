@@ -5,8 +5,8 @@ export function Dialog({ open, onOpenChange, children }: { open: boolean, onOpen
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center">
-      <div className="bg-background w-full max-w-lg rounded-lg border shadow-lg overflow-hidden sm:max-w-[425px] max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center sm:p-0 transition-all duration-300">
+      <div className="bg-background/95 backdrop-blur-md w-full max-w-lg rounded-2xl border border-border/50 shadow-2xl overflow-hidden sm:max-w-[425px] max-h-[90vh] overflow-y-auto transform transition-all">
         {children}
       </div>
     </div>

@@ -15,12 +15,12 @@ export default function SummaryPage() {
   const players = session.players
 
   return (
-    <div className="max-w-4xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-6 sm:p-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-3 sm:gap-4">
         <Link to={`/table/${session.tableId}`}>
-          <Button variant="outline" size="sm" className="sm:px-4 sm:py-2">Back</Button>
+          <Button variant="outline" size="sm">Back</Button>
         </Link>
-        <h1 className="text-lg sm:text-2xl font-bold flex-1 truncate">Summary ({session.date})</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex-1 truncate">Summary ({session.date})</h1>
       </div>
 
       <div className="grid gap-4 mt-4 sm:mt-6">
@@ -35,21 +35,23 @@ export default function SummaryPage() {
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Invested</p>
+                  <p className="text-sm text-muted-foreground font-medium mb-1">Total Invested</p>
                   <p className="text-lg sm:text-xl font-bold">£{p.total}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Profit / Loss</p>
-                  <p className={`text-lg sm:text-xl font-bold ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-sm text-muted-foreground font-medium mb-1">Profit / Loss</p>
+                  <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-base sm:text-lg font-bold ${profitLoss >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'}`}>
                     {profitLoss > 0 ? '+' : ''}£{profitLoss.toFixed(2)}
-                  </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           )
         })}
         {players.length === 0 && (
-          <div className="text-muted-foreground p-4 border rounded">No players to show.</div>
+          <div className="flex flex-col items-center justify-center p-8 text-center rounded-2xl border-2 border-dashed border-border/60 bg-muted/20">
+            <p className="text-muted-foreground text-sm font-medium mb-1">No players to show.</p>
+          </div>
         )}
       </div>
     </div>
