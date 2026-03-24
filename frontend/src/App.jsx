@@ -3,6 +3,7 @@ import Dashboard from "./pages/Dashboard"
 import TablePage from "./pages/TablePage"
 import SessionPage from "./pages/SessionPage"
 import SummaryPage from "./pages/SummaryPage"
+import LearnPage from "./pages/LearnPage"
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route path="/table/:id" element={<TablePage />} />
           <Route path="/session/:id" element={<SessionPage />} />
           <Route path="/summary/:id" element={<SummaryPage />} />
+          <Route path="/learn" element={<LearnPage />} />
         </Routes>
       </div>
     </BrowserRouter>

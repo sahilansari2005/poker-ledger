@@ -60,7 +60,7 @@ export default function TablePage() {
       tableId: table.id,
       date: new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
       players,
-      defaultBuyIn: table.defaultBuyIn || 10,
+      defaultBuyIn: table.defaultBuyIn || 0,
       isCompleted: false
     }
     

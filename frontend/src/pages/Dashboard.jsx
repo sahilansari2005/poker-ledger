@@ -1,18 +1,18 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { Plus, Users, Coins, ChevronRight } from "lucide-react"
+import { Plus, Users, Coins, ChevronRight, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 
 export default function Dashboard() {
   const [tables, setTables] = useLocalStorage("poker_tables", [])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [name, setName] = useState("")
-  const [buyIn, setBuyIn] = useState("10")
+  const [buyIn, setBuyIn] = useState("")
   const [membersStr, setMembersStr] = useState("")
 
   const handleCreateTable = () => {
@@ -21,7 +21,7 @@ export default function Dashboard() {
     const newTable = {
       id: `table-${Date.now()}`,
       name,
-      defaultBuyIn: parseFloat(buyIn) || 10,
+      defaultBuyIn: parseFloat(buyIn) || 0,
       members
     }
     setTables([...tables, newTable])
@@ -44,16 +44,14 @@ export default function Dashboard() {
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
               Your Tables
             </h1>
-            <p className="text-muted-foreground text-lg">Manage your ongoing poker sessions and groups.</p>
+            <p className="text-muted-foreground text-lg">Manage your ongoing and past games</p>
           </div>
-          
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="lg" className="rounded-full shadow-lg shadow-primary/25 transition-all hover:scale-105 active:scale-95 group">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <Button onClick={() => setIsDialogOpen(true)} size="lg" className="w-full sm:w-auto rounded-full shadow-lg shadow-primary/25 transition-all hover:scale-105 active:scale-95 group">
                 <Plus className="mr-2 h-5 w-5 transition-transform group-hover:rotate-90" />
                 Create Table
               </Button>
-            </DialogTrigger>
             <DialogContent className="sm:max-w-md border-border/50 bg-card/80 backdrop-blur-xl">
               <DialogHeader>
                 <DialogTitle className="text-2xl">New Poker Table</DialogTitle>
@@ -73,7 +71,7 @@ export default function Dashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="buyin" className="text-sm font-semibold">Default Buy-in (£)</Label>
+                  <Label htmlFor="buyin" className="text-sm font-semibold">Default Buy-in</Label>
                   <Input 
                     id="buyin"
                     type="number"
@@ -99,6 +97,7 @@ export default function Dashboard() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Tables Grid */}
@@ -165,6 +164,22 @@ export default function Dashboard() {
               </Button>
             </div>
           )}
+        </div>
+        
+        <div className="flex justify-center pt-8 pb-4">
+          <Button 
+            variant="ghost" 
+            className="text-destructive/50 hover:text-destructive hover:bg-destructive/10 text-xs sm:text-sm transition-colors" 
+            onClick={() => {
+              if(window.confirm('Are you sure you want to delete all test data? This cannot be undone.')) {
+                window.localStorage.removeItem('poker_tables');
+                window.localStorage.removeItem('poker_sessions');
+                window.location.reload();
+              }
+            }}
+          >
+            Clear All Test Data
+          </Button>
         </div>
       </div>
     </div>

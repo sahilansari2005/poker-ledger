@@ -1,10 +1,9 @@
 import { useState } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import { ChevronLeft, Plus, Settings2, ShieldCheck, AlertCircle, Coins, Wallet } from "lucide-react"
+import { ChevronLeft, Plus, ShieldCheck, AlertCircle, Coins, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 
@@ -14,10 +13,7 @@ export default function SessionPage() {
   
   const [allSessions, setAllSessions] = useLocalStorage("poker_sessions", [])
   const session = allSessions.find(s => s.id === id)
-
-  const [txDialogOpen, setTxDialogOpen] = useState(false)
-  const [txPlayer, setTxPlayer] = useState(null)
-  const [txAmount, setTxAmount] = useState("")
+  const [addValues, setAddValues] = useState({})
 
   const [isCashingOut, setIsCashingOut] = useState(false)
   const [cashOutValues, setCashOutValues] = useState({})
@@ -33,34 +29,23 @@ export default function SessionPage() {
   )
 
   const updatePlayerTotal = (playerId, amountToAdd) => {
-    setAllSessions(allSessions.map(s => {
+    setAllSessions(prevSessions => prevSessions.map(s => {
       if (s.id !== id) return s
       return {
         ...s,
         players: s.players.map(p => 
-          p.id === playerId ? { ...p, total: p.total + amountToAdd } : p
+          p.id === playerId ? { ...p, total: Number(p.total) + amountToAdd } : p
         )
       }
     }))
   }
 
-  const handleQuickAdd = (p) => {
-    updatePlayerTotal(p.id, session.defaultBuyIn || 10)
-  }
-
-  const handleOpenTx = (p) => {
-    setTxPlayer(p)
-    setTxAmount("")
-    setTxDialogOpen(true)
-  }
-
-  const handleTxSubmit = () => {
-    if (!txPlayer || !txAmount) return
-    const amt = parseFloat(txAmount)
+  const handleAddSubmit = (playerId) => {
+    const amt = parseFloat(addValues[playerId])
     if (isNaN(amt) || amt <= 0) return
 
-    updatePlayerTotal(txPlayer.id, amt)
-    setTxDialogOpen(false)
+    updatePlayerTotal(playerId, amt)
+    setAddValues({ ...addValues, [playerId]: "" })
   }
 
   const handleStartCashOut = () => {
@@ -104,8 +89,8 @@ export default function SessionPage() {
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col items-center pt-8 sm:pt-16 px-4 pb-24">
       {/* Background Decor */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[150px] rounded-full point-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-destructive/10 blur-[150px] rounded-full point-events-none" />
+      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[150px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-destructive/10 blur-[150px] rounded-full pointer-events-none" />
 
       <div className="w-full max-w-4xl space-y-8 z-10 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out fill-mode-both">
         {/* Header Section */}
@@ -163,21 +148,25 @@ export default function SessionPage() {
                 </CardHeader>
                 <CardContent className="pt-4 pb-2">
                   <div className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">Add Buy-in</div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">£</span>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={addValues[p.id] || ""}
+                        onChange={(e) => setAddValues({ ...addValues, [p.id]: e.target.value })}
+                        disabled={session.isCompleted}
+                        className="pl-7 h-10 bg-background/50 focus-visible:ring-primary/50 font-bold"
+                      />
+                    </div>
                     <Button 
-                      onClick={() => handleQuickAdd(p)} 
-                      disabled={session.isCompleted}
-                      className="w-full bg-secondary hover:bg-primary hover:text-primary-foreground text-secondary-foreground transition-all duration-300 shadow-sm"
+                      type="button"
+                      onClick={() => handleAddSubmit(p.id)} 
+                      disabled={session.isCompleted || !parseFloat(addValues[p.id])}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm h-10 px-4 transition-all z-20 cursor-pointer"
                     >
-                      <Plus className="w-4 h-4 mr-1" /> £{session.defaultBuyIn || 10}
-                    </Button>
-                    <Button 
-                      onClick={() => handleOpenTx(p)} 
-                      disabled={session.isCompleted}
-                      variant="outline" 
-                      className="w-full border-border/50 bg-background/50 hover:bg-accent transition-all duration-300"
-                    >
-                      <Settings2 className="w-4 h-4 mr-1" /> Custom
+                      <Plus className="w-4 h-4 mr-1" /> Add
                     </Button>
                   </div>
                 </CardContent>
@@ -297,35 +286,7 @@ export default function SessionPage() {
         )}
       </div>
 
-      <Dialog open={txDialogOpen} onOpenChange={setTxDialogOpen}>
-        {txPlayer && (
-          <DialogContent className="sm:max-w-md border-border/50 bg-card/80 backdrop-blur-xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl">Custom Buy-in</DialogTitle>
-              <DialogDescription>
-                Add a specific amount for {txPlayer.name}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-6 space-y-4">
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-lg">£</span>
-                <Input 
-                  type="number" 
-                  value={txAmount} 
-                  onChange={e => setTxAmount(e.target.value)} 
-                  placeholder="0.00"
-                  className="pl-9 h-14 text-xl font-bold bg-background/50 focus-visible:ring-primary/50"
-                  autoFocus
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="ghost" className="rounded-xl" onClick={() => setTxDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleTxSubmit} className="rounded-xl shadow-md px-8">Add Amount</Button>
-            </DialogFooter>
-          </DialogContent>
-        )}
-      </Dialog>
+
     </div>
   )
 }
