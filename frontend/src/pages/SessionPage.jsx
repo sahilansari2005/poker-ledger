@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
-import { ChevronLeft, Plus, ShieldCheck, AlertCircle, Coins, Wallet } from "lucide-react"
+import { ChevronLeft, Plus, ShieldCheck, AlertCircle, Coins, Wallet, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -81,6 +81,13 @@ export default function SessionPage() {
     navigate(`/summary/${id}`)
   }
 
+  const handleDeleteSession = () => {
+    if (window.confirm("Are you sure you want to delete this session entirely? This cannot be undone.")) {
+      setAllSessions(prev => prev.filter(s => s.id !== id))
+      navigate(`/table/${session.tableId}`, { replace: true })
+    }
+  }
+
   const totalBuyIn = session.players.reduce((sum, p) => sum + p.total, 0)
   const totalCashOut = session.players.reduce((sum, p) => sum + (parseFloat(cashOutValues[p.id]) || 0), 0)
   const isBalanced = Math.abs(totalBuyIn - totalCashOut) < 0.01
@@ -110,8 +117,12 @@ export default function SessionPage() {
             </div>
           </div>
           
-          {!session.isCompleted && (
-            <div className="w-full sm:w-auto">
+          {!session.isCompleted ? (
+            <div className="w-full flex-col sm:flex-row sm:w-auto flex items-center gap-3">
+              <Button variant="ghost" className="w-full sm:w-auto text-destructive/70 hover:text-destructive hover:bg-destructive/10 rounded-full" onClick={handleDeleteSession}>
+                <Trash2 className="w-5 h-5 sm:mr-0 mr-2" />
+                <span className="sm:hidden font-semibold">Delete Session</span>
+              </Button>
               {!isCashingOut ? (
                 <Button size="lg" className="w-full shadow-lg shadow-destructive/20 bg-destructive hover:bg-destructive/90 text-destructive-foreground transition-all hover:scale-105 active:scale-95 group rounded-full" onClick={handleStartCashOut}>
                   <ShieldCheck className="mr-2 h-5 w-5 opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -122,6 +133,12 @@ export default function SessionPage() {
                   Back to Game
                 </Button>
               )}
+            </div>
+          ) : (
+            <div className="w-full sm:w-auto flex justify-end">
+              <Button variant="outline" className="w-full sm:w-auto text-destructive/80 hover:text-destructive hover:bg-destructive/10 rounded-full border-border/50 shadow-sm" onClick={handleDeleteSession}>
+                <Trash2 className="w-4 h-4 mr-2" /> Delete Session
+              </Button>
             </div>
           )}
         </div>
