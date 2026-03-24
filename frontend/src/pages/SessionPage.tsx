@@ -94,21 +94,21 @@ export default function SessionPage() {
   const isBalanced = totalBuyIn === totalCashOut
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 sm:p-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
           <Link to={`/table/${session.tableId}`}>
-            <Button variant="outline" size="sm">Back</Button>
+            <Button variant="outline" size="sm" className="sm:px-4 sm:py-2">Back</Button>
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex-1 truncate">
+          <h1 className="text-xl sm:text-2xl font-bold flex-1 truncate">
             {isCashingOut ? "Cash Out" : "Session"}
           </h1>
         </div>
         
         {!isCashingOut ? (
-          <Button className="w-full sm:w-auto shadow-sm" variant="destructive" onClick={handleStartCashOut}>End Session</Button>
+          <Button className="w-full sm:w-auto" variant="destructive" onClick={handleStartCashOut}>End Session</Button>
         ) : (
-          <Button className="w-full sm:w-auto shadow-sm" variant="default" onClick={() => setIsCashingOut(false)}>Resume Session</Button>
+          <Button className="w-full sm:w-auto" variant="default" onClick={() => setIsCashingOut(false)}>Resume Session</Button>
         )}
       </div>
 
@@ -131,21 +131,19 @@ export default function SessionPage() {
             </Card>
           ))}
           {session.players.length === 0 && (
-            <div className="md:col-span-2 flex flex-col items-center justify-center p-8 sm:p-12 text-center rounded-2xl border-2 border-dashed border-border/60 bg-muted/20">
-              <p className="text-muted-foreground text-sm font-medium">No players connected to this session.</p>
-            </div>
+            <div className="text-muted-foreground p-4 border rounded">No players connected to this session.</div>
           )}
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-secondary/30 p-5 sm:p-6 rounded-2xl flex justify-between items-center border border-border/50 backdrop-blur-sm shadow-sm">
+          <div className="bg-muted/50 p-4 rounded-lg flex justify-between items-center border">
             <div>
-              <p className="text-xs sm:text-sm text-muted-foreground font-medium mb-1">In Play</p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight">£{totalBuyIn}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium">In Play</p>
+              <p className="text-xl sm:text-2xl font-bold">£{totalBuyIn}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs sm:text-sm text-muted-foreground font-medium mb-1">Cashed Out</p>
-              <p className={`text-2xl sm:text-3xl font-bold tracking-tight ${isBalanced ? 'text-green-600' : 'text-red-500'}`}>£{totalCashOut}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium">Cashed Out</p>
+              <p className={`text-xl sm:text-2xl font-bold ${isBalanced ? 'text-green-600' : 'text-red-500'}`}>£{totalCashOut}</p>
             </div>
           </div>
           
@@ -159,7 +157,7 @@ export default function SessionPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <label className="text-xs font-medium leading-none block text-muted-foreground mb-2">Final Chip Count (£)</label>
+                  <label className="text-xs text-muted-foreground mb-1 block">Final Chip Count (£)</label>
                   <Input
                     type="number"
                     placeholder="e.g. 15.50"
@@ -190,16 +188,15 @@ export default function SessionPage() {
             <DialogHeader>
               <DialogTitle>Add Custom Amount to {txPlayer.name}</DialogTitle>
             </DialogHeader>
-            <div className="py-2 space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Amount (£)</label>
-                <Input 
-                  type="number" 
-                  value={txAmount} 
-                  onChange={e => setTxAmount(e.target.value)} 
-                  placeholder="Enter amount"
-                />
-              </div>
+            <div className="py-4">
+              <label className="text-sm font-medium">Amount (£)</label>
+              <Input 
+                type="number" 
+                value={txAmount} 
+                onChange={e => setTxAmount(e.target.value)} 
+                placeholder="Enter amount"
+                className="mt-2"
+              />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setTxDialogOpen(false)}>Cancel</Button>

@@ -79,12 +79,12 @@ export default function TablePage() {
   }, {} as Record<string, { totalInvested: number, totalProfit: number }>)
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 sm:p-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-4xl mx-auto p-3 sm:p-6 space-y-5 sm:space-y-6">
       <div className="flex items-center gap-3 sm:gap-4">
         <Link to="/">
-          <Button variant="outline" size="sm">Back</Button>
+          <Button variant="outline" size="sm" className="sm:px-4 sm:py-2">Back</Button>
         </Link>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex-1 truncate">{table.name}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold flex-1 truncate">{table.name}</h1>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 mt-4 sm:mt-6">
@@ -110,17 +110,15 @@ export default function TablePage() {
               )
             })}
             {members.length === 0 && (
-              <div className="flex flex-col items-center justify-center p-6 text-center rounded-2xl border-2 border-dashed border-border/60 bg-muted/20">
-                <p className="text-muted-foreground text-sm">No members added yet.</p>
-              </div>
+              <div className="text-muted-foreground p-4 border rounded text-sm">No members yet.</div>
             )}
           </div>
         </div>
 
         <div>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <h2 className="text-lg sm:text-xl font-semibold tracking-tight">Sessions</h2>
-            <Button className="w-full sm:w-auto shadow-sm" onClick={handleOpenNewSession}>New Session</Button>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 sm:gap-0">
+            <h2 className="text-lg sm:text-xl font-semibold">Sessions</h2>
+            <Button className="w-full sm:w-auto" onClick={handleOpenNewSession}>New Session</Button>
           </div>
           <div className="grid gap-2">
             {tableSessions.map(s => (
@@ -136,10 +134,7 @@ export default function TablePage() {
               </Card>
             ))}
             {tableSessions.length === 0 && (
-              <div className="flex flex-col items-center justify-center p-8 text-center rounded-2xl border-2 border-dashed border-border/60 bg-muted/20 mt-2">
-                <p className="text-muted-foreground text-sm font-medium mb-3">No sessions logged</p>
-                <Button onClick={handleOpenNewSession} variant="secondary" size="sm">Start a Session</Button>
-              </div>
+              <div className="text-muted-foreground p-4 border rounded">No sessions yet.</div>
             )}
           </div>
         </div>
