@@ -44,7 +44,7 @@ export default function Dashboard() {
             <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
               Your Tables
             </h1>
-            <p className="text-muted-foreground text-lg">Manage your ongoing and past games</p>
+            <p className="text-muted-foreground text-lg">Manage your ongoing and past games.</p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
