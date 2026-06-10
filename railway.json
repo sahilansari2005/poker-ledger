@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.railway.app/railway-schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pip install -r requirements.txt",
+    "watchPatterns": ["backend/**"]
+  },
+  "deploy": {
+    "startCommand": "cd backend && bash release.sh && gunicorn config.wsgi --bind 0.0.0.0:$PORT --log-file -",
+    "healthcheckPath": "/api/auth/login/",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
