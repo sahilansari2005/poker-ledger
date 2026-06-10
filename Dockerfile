@@ -15,4 +15,4 @@ ENV PYTHONUNBUFFERED=1
 # Run collectstatic at build time with a dummy key
 RUN SECRET_KEY=dummy-build-key python manage.py collectstatic --no-input
 
-CMD ["sh", "-c", "python manage.py migrate --no-input && python -m gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --log-level debug"]
+CMD ["sh", "-c", "exec 2>&1; echo 'PORT='$PORT; python manage.py migrate --no-input && python -m gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --log-level debug --capture-output"]
