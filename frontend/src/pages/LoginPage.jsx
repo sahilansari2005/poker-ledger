@@ -46,7 +46,7 @@ export default function LoginPage() {
                 id="username"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="your_username"
+                placeholder="Your username"
                 className="h-12 bg-background/50"
                 required
               />
