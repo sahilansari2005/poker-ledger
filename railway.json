@@ -7,7 +7,6 @@
   },
   "deploy": {
     "startCommand": "cd backend && python manage.py migrate --no-input && python manage.py collectstatic --no-input && gunicorn config.wsgi --bind 0.0.0.0:$PORT --log-file -",
-    "healthcheckPath": "/api/auth/login/",
-    "restartPolicyType": "ON_FAILURE"
+"restartPolicyType": "ON_FAILURE"
   }
 }
