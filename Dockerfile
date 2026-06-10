@@ -9,7 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
+COPY start.sh .
+RUN chmod +x start.sh
 
-CMD python manage.py migrate --no-input && \
-    python manage.py collectstatic --no-input && \
-    gunicorn config.wsgi --bind 0.0.0.0:${PORT:-8000} --log-file -
+CMD ["./start.sh"]
