@@ -1,23 +1,9 @@
-from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Table, TableMember, TableCollaborator, Session, SessionPlayer
+from .models import Table, TableMember, Session, SessionPlayer
 
-
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
-
-    class Meta:
-        model = User
-        fields = ("id", "username", "email", "password")
-
-    def create(self, validated_data):
-        return User.objects.create_user(**validated_data)
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ("id", "username", "email")
+ALLOWED_CURRENCIES = {
+    "GBP", "USD", "EUR", "CAD", "AUD", "AED", "INR", "SGD", "CHF", "JPY", "NZD", "HKD",
+}
 
 
 class TableMemberSerializer(serializers.ModelSerializer):
@@ -26,16 +12,8 @@ class TableMemberSerializer(serializers.ModelSerializer):
         fields = ("id", "name")
 
 
-class CollaboratorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ("id", "username")
-
-
 class TableSerializer(serializers.ModelSerializer):
     members = TableMemberSerializer(many=True, read_only=True)
-    collaborators = CollaboratorSerializer(many=True, read_only=True)
-    is_owner = serializers.SerializerMethodField()
     member_names = serializers.ListField(
         child=serializers.CharField(max_length=100),
         write_only=True,
@@ -45,12 +23,14 @@ class TableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Table
-        fields = ("id", "name", "default_buy_in", "members", "collaborators", "is_owner", "member_names", "created_at")
+        fields = ("id", "name", "default_buy_in", "currency", "members", "member_names", "created_at")
         read_only_fields = ("id", "created_at")
 
-    def get_is_owner(self, obj):
-        request = self.context.get("request")
-        return request and obj.owner_id == request.user.id
+    def validate_currency(self, value):
+        code = (value or "GBP").upper()
+        if code not in ALLOWED_CURRENCIES:
+            raise serializers.ValidationError(f"Unsupported currency: {value}")
+        return code
 
     def create(self, validated_data):
         member_names = validated_data.pop("member_names", [])
@@ -63,6 +43,8 @@ class TableSerializer(serializers.ModelSerializer):
         member_names = validated_data.pop("member_names", None)
         instance.name = validated_data.get("name", instance.name)
         instance.default_buy_in = validated_data.get("default_buy_in", instance.default_buy_in)
+        if "currency" in validated_data:
+            instance.currency = validated_data["currency"]
         instance.save()
 
         if member_names is not None:
@@ -81,6 +63,7 @@ class SessionPlayerSerializer(serializers.ModelSerializer):
 
 class SessionSerializer(serializers.ModelSerializer):
     players = SessionPlayerSerializer(many=True, read_only=True)
+    table_currency = serializers.CharField(source="table.currency", read_only=True)
     player_names = serializers.ListField(
         child=serializers.CharField(max_length=100),
         write_only=True,
@@ -90,7 +73,7 @@ class SessionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Session
-        fields = ("id", "table", "date", "is_completed", "players", "player_names", "created_at")
+        fields = ("id", "table", "table_currency", "date", "is_completed", "players", "player_names", "created_at")
         read_only_fields = ("id", "table", "date", "is_completed", "created_at")
 
     def create(self, validated_data):
@@ -117,7 +100,3 @@ class CashOutPlayerSerializer(serializers.Serializer):
 
 class CompleteSessionSerializer(serializers.Serializer):
     cash_outs = CashOutPlayerSerializer(many=True)
-
-
-class InviteCollaboratorSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=150)

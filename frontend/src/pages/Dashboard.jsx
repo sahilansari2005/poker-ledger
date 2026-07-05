@@ -1,189 +1,160 @@
-import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Plus, Users, Coins, ChevronRight, LogOut } from "lucide-react"
+import { useState } from "react"
+import { Link } from "react-router-dom"
+import { Plus, Users, Coins, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-import { useAuth } from "@/contexts/AuthContext"
-import { tablesApi } from "@/lib/api"
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogFooter,
+  ResponsiveDialogDescription,
+} from "@/components/ui/responsive-dialog"
+import { loadDefaultCurrency, formatMoney } from "@/lib/currency"
+import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
+import { useTables, useCreateTable } from "@/lib/queries"
 
 export default function Dashboard() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const [tables, setTables] = useState([])
+  const { data: tables = [] } = useTables()
+  const createTable = useCreateTable()
+  const [tablesListRef] = useAnimatedList()
+
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [name, setName] = useState("")
   const [buyIn, setBuyIn] = useState("10")
   const [membersStr, setMembersStr] = useState("")
   const [error, setError] = useState("")
-  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    tablesApi.list().then(setTables).catch(console.error)
-  }, [])
-
-  const handleCreateTable = async () => {
+  const handleCreateTable = () => {
     if (!name || !buyIn) return
     setError("")
-    setSaving(true)
-    try {
-      const memberNames = membersStr.split(",").map(s => s.trim()).filter(Boolean)
-      const newTable = await tablesApi.create(name, parseFloat(buyIn) || 0, memberNames)
-      setTables([...tables, newTable])
-      setIsDialogOpen(false)
-      setName("")
-      setMembersStr("")
-      setBuyIn("10")
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
 
-  const handleLogout = () => {
-    logout()
-    navigate("/login")
+    createTable.mutate(
+      {
+        name,
+        buyIn: parseFloat(buyIn) || 0,
+        memberNames: membersStr.split(",").map(s => s.trim()).filter(Boolean),
+        currency: loadDefaultCurrency(),
+      },
+      {
+        onSuccess: () => {
+          setIsDialogOpen(false)
+          setName("")
+          setMembersStr("")
+          setBuyIn("10")
+        },
+        onError: (err) => setError(err.message),
+      }
+    )
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col items-center pt-12 sm:pt-20 px-4">
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-ring/20 blur-[120px] rounded-full pointer-events-none" />
-
-      <div className="w-full max-w-5xl space-y-8 z-10 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out fill-mode-both">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 pb-6 border-b border-border/40">
-          <div className="space-y-2">
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Your Tables
-            </h1>
-            <p className="text-muted-foreground text-lg">Hey {user?.username} — manage your ongoing and past games</p>
-          </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Button variant="ghost" size="icon" className="rounded-full" onClick={handleLogout} title="Log out">
-              <LogOut className="w-4 h-4" />
-            </Button>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <Button onClick={() => setIsDialogOpen(true)} size="lg" className="w-full sm:w-auto rounded-full shadow-lg shadow-primary/25 transition-all hover:scale-105 active:scale-95 group">
-                <Plus className="mr-2 h-5 w-5 transition-transform group-hover:rotate-90" />
-                Create Table
-              </Button>
-              <DialogContent className="sm:max-w-md border-border/50 bg-card/80 backdrop-blur-xl">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl">New Poker Table</DialogTitle>
-                  <DialogDescription>Set up the stakes and add members to get started.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm font-semibold">Table Name</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="e.g. March High Rollers"
-                      className="h-12 bg-background/50 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="buyin" className="text-sm font-semibold">Default Buy-in</Label>
-                    <Input
-                      id="buyin"
-                      type="number"
-                      value={buyIn}
-                      onChange={e => setBuyIn(e.target.value)}
-                      className="h-12 bg-background/50 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="members" className="text-sm font-semibold">Members</Label>
-                    <Input
-                      id="members"
-                      value={membersStr}
-                      onChange={e => setMembersStr(e.target.value)}
-                      placeholder="Ali, Fayyad, John (comma separated)"
-                      className="h-12 bg-background/50 focus-visible:ring-primary/50"
-                    />
-                  </div>
-                  {error && <p className="text-sm text-destructive">{error}</p>}
-                </div>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-xl">Cancel</Button>
-                  <Button onClick={handleCreateTable} disabled={saving} className="rounded-xl shadow-md">
-                    {saving ? "Creating…" : "Create Table"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+    <div className="space-y-6">
+      <header className="space-y-4 border-b border-border pb-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Your Tables</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Track buy-ins, cash-outs, and session stats</p>
         </div>
+        <Button
+          onClick={() => setIsDialogOpen(true)}
+          size="lg"
+          className="h-12 w-full rounded-xl shadow-lg shadow-primary/20 touch-manipulation sm:w-auto"
+        >
+          <Plus className="mr-2 size-5" />
+          Create Table
+        </Button>
+      </header>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {tables.map((table, i) => (
-            <Card
-              key={table.id}
-              className="group relative overflow-hidden border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:bg-card/60 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
-              style={{ animationDelay: `${(i + 1) * 100}ms` }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <CardHeader className="pb-3 border-b border-border/10">
-                <CardTitle className="text-xl font-bold">
-                  <span className="truncate">{table.name}</span>
-                </CardTitle>
-                <CardDescription className="flex items-center gap-4 text-xs font-medium uppercase tracking-wider mt-2">
-                  <span className="flex items-center gap-1.5 opacity-80">
-                    <Users className="w-3.5 h-3.5" /> {table.members?.length || 0}
+      <div ref={tablesListRef} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ui-stagger">
+        {tables.map((table) => (
+          <Card key={table.id} className="ui-card-hover">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-bold truncate">{table.name}</CardTitle>
+              <CardDescription className="flex items-center gap-4 text-xs font-medium uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Users className="size-3.5" /> {table.members?.length || 0}
+                </span>
+                <span className="flex items-center gap-1.5 text-primary">
+                  <Coins className="size-3.5" /> {formatMoney(table.default_buy_in, table.currency)}
+                </span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="flex flex-wrap gap-1.5">
+                {(table.members || []).slice(0, 4).map(m => (
+                  <span key={m.id} className="rounded-md border border-border/40 bg-secondary/80 px-2 py-1 text-[10px] font-semibold">
+                    {m.name}
                   </span>
-                  <span className="flex items-center gap-1.5 opacity-80 text-primary">
-                    <Coins className="w-3.5 h-3.5" /> £{table.default_buy_in}
+                ))}
+                {(table.members || []).length > 4 && (
+                  <span className="rounded-md border border-border/20 bg-secondary/40 px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+                    +{(table.members || []).length - 4}
                   </span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4 pb-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {(table.members || []).slice(0, 4).map(m => (
-                    <span key={m.id} className="px-2 py-1 bg-secondary/80 rounded-md text-[10px] font-semibold tracking-wide border border-border/40">
-                      {m.name}
-                    </span>
-                  ))}
-                  {(table.members || []).length > 4 && (
-                    <span className="px-2 py-1 bg-secondary/40 rounded-md text-[10px] font-semibold text-muted-foreground border border-border/20">
-                      +{(table.members || []).length - 4} more
-                    </span>
-                  )}
-                  {(table.members || []).length === 0 && (
-                    <span className="text-xs text-muted-foreground italic">No members added yet</span>
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter className="pt-4">
-                <Link to={`/table/${table.id}`} className="w-full">
-                  <Button variant="secondary" className="w-full group/btn relative overflow-hidden bg-secondary/50 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
-                    <span className="relative z-10 flex items-center justify-center font-semibold">
-                      Open Table
-                      <ChevronRight className="w-4 h-4 ml-1.5 opacity-0 -translate-x-2 transition-all duration-300 group-hover/btn:opacity-100 group-hover/btn:translate-x-0" />
-                    </span>
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
-
-          {tables.length === 0 && (
-            <div className="col-span-full py-16 flex flex-col items-center justify-center text-center space-y-4 animate-in fade-in zoom-in-95 duration-500 delay-200 fill-mode-both border-2 border-dashed border-border/40 rounded-3xl bg-card/10">
-              <div className="w-16 h-16 rounded-full bg-secondary/50 flex items-center justify-center mb-2">
-                <Users className="w-8 h-8 text-muted-foreground/50" />
+                )}
               </div>
-              <h3 className="text-xl font-bold">No Tables Yet</h3>
-              <p className="text-muted-foreground max-w-sm">Create your first poker table to start tracking buy-ins, cash-outs, and stats.</p>
-              <Button variant="outline" className="mt-4 rounded-full border-border/50 bg-background/50 backdrop-blur-md" onClick={() => setIsDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" /> Quick Create
-              </Button>
-            </div>
-          )}
-        </div>
+            </CardContent>
+            <CardFooter>
+              <Link to={`/table/${table.id}`} className="w-full">
+                <Button variant="secondary" className="h-11 w-full rounded-xl">
+                  Open Table
+                  <ChevronRight className="ml-1 size-4" />
+                </Button>
+              </Link>
+            </CardFooter>
+          </Card>
+        ))}
+
+        {tables.length === 0 && (
+          <div className="col-span-full flex flex-col items-center rounded-2xl border-2 border-dashed border-border bg-card px-6 py-12 text-center shadow-sm">
+            <Users className="mb-3 size-10 text-muted-foreground/60" />
+            <h3 className="text-lg font-bold">No Tables Yet</h3>
+            <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+              Create a table to start tracking your home game.
+            </p>
+            <Button className="mt-5 h-11 w-full max-w-xs rounded-xl" onClick={() => setIsDialogOpen(true)}>
+              <Plus className="mr-2 size-4" /> Create Table
+            </Button>
+          </div>
+        )}
       </div>
+
+      <ResponsiveDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <ResponsiveDialogContent className="sm:max-w-md">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle className="text-xl">New Poker Table</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>Set up stakes and add members.</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Table Name</Label>
+              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Friday Night Game" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="buyin">Default Buy-in</Label>
+              <Input id="buyin" type="number" inputMode="decimal" value={buyIn} onChange={e => setBuyIn(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="members">Members</Label>
+              <Input
+                id="members"
+                value={membersStr}
+                onChange={e => setMembersStr(e.target.value)}
+                placeholder="Ali, Fayyad, John"
+              />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <ResponsiveDialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="ghost" className="h-11 w-full sm:w-auto" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button className="h-11 w-full sm:w-auto" onClick={handleCreateTable} disabled={createTable.isPending}>
+              {createTable.isPending ? "Creating…" : "Create Table"}
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     </div>
   )
 }

@@ -1,0 +1,36 @@
+# Production-style Docker Compose (Postgres + app).
+# Copy .env.example to .env, set SECRET_KEY and DATABASE_URL, then:
+#   docker compose up --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: poker_ledger
+      POSTGRES_USER: poker_ledger
+      POSTGRES_PASSWORD: poker_ledger
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poker_ledger -d poker_ledger"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DEBUG: "False"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      DATABASE_URL: postgres://poker_ledger:poker_ledger@db:5432/poker_ledger
+
+volumes:
+  postgres-data:

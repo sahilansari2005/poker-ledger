@@ -1,0 +1,45 @@
+# Local testing image — single container, SQLite, debug-friendly defaults.
+# Usage: docker compose -f docker-compose.local.yml up --build
+
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app/frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000 \
+    DEBUG=True \
+    ALLOWED_HOSTS=* \
+    SECRET_KEY=local-docker-dev-key-change-me \
+    DATABASE_URL=sqlite:////data/db.sqlite3
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ ./backend/
+COPY --from=frontend-build /app/backend/static/frontend ./backend/static/frontend/
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /app/backend
+
+RUN python manage.py collectstatic --no-input
+
+RUN mkdir -p /data
+
+EXPOSE 8000
+
+VOLUME ["/data"]
+
+ENTRYPOINT ["/entrypoint.sh"]

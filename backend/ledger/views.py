@@ -1,112 +1,23 @@
-from django.contrib.auth.models import User
-from django.db.models import Q
-from rest_framework import generics, viewsets, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
 
-from .models import Table, TableCollaborator, Session, SessionPlayer
+from .models import Table, Session, SessionPlayer
 from .serializers import (
-    RegisterSerializer,
-    UserSerializer,
     TableSerializer,
     SessionSerializer,
     SessionPlayerSerializer,
     AddBuyInSerializer,
     AddPlayerSerializer,
     CompleteSessionSerializer,
-    InviteCollaboratorSerializer,
 )
-
-
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
-    permission_classes = [AllowAny]
-
-
-class MeView(generics.RetrieveAPIView):
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
 
 
 class TableViewSet(viewsets.ModelViewSet):
     serializer_class = TableSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_context(self):
-        return {**super().get_serializer_context(), "request": self.request}
-
-    def get_queryset(self):
-        # Return tables the user owns OR has been invited to
-        return (
-            Table.objects.filter(
-                Q(owner=self.request.user) | Q(collaborators=self.request.user)
-            )
-            .distinct()
-            .prefetch_related("members", "collaborators")
-        )
-
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
-
-    def _is_owner(self, table):
-        return table.owner == self.request.user
-
-    def _has_access(self, table):
-        return self._is_owner(table) or self.request.user in table.collaborators.all()
-
-    def get_object(self):
-        obj = super().get_object()
-        if not self._has_access(obj):
-            raise PermissionDenied
-        return obj
-
-    def update(self, request, *args, **kwargs):
-        table = self.get_object()
-        if not self._is_owner(table):
-            raise PermissionDenied("Only the owner can edit this table.")
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        table = self.get_object()
-        if not self._is_owner(table):
-            raise PermissionDenied("Only the owner can delete this table.")
-        return super().destroy(request, *args, **kwargs)
-
-    @action(detail=True, methods=["post"], url_path="invite")
-    def invite(self, request, pk=None):
-        table = self.get_object()
-        if not self._is_owner(table):
-            raise PermissionDenied("Only the owner can invite collaborators.")
-
-        serializer = InviteCollaboratorSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        username = serializer.validated_data["username"]
-
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({"detail": f"User '{username}' not found."}, status=404)
-
-        if user == table.owner:
-            return Response({"detail": "Owner is already on this table."}, status=400)
-
-        TableCollaborator.objects.get_or_create(table=table, user=user)
-        return Response(TableSerializer(table, context={"request": request}).data)
-
-    @action(detail=True, methods=["delete"], url_path=r"collaborators/(?P<user_id>\d+)")
-    def remove_collaborator(self, request, pk=None, user_id=None):
-        table = self.get_object()
-        if not self._is_owner(table):
-            raise PermissionDenied("Only the owner can remove collaborators.")
-
-        TableCollaborator.objects.filter(table=table, user_id=user_id).delete()
-        return Response(TableSerializer(table, context={"request": request}).data)
+    permission_classes = [AllowAny]
+    queryset = Table.objects.prefetch_related("members").all()
 
     @action(detail=True, methods=["get", "post"], url_path="sessions")
     def sessions(self, request, pk=None):
@@ -124,12 +35,8 @@ class TableViewSet(viewsets.ModelViewSet):
 
 class SessionViewSet(viewsets.GenericViewSet):
     serializer_class = SessionSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Session.objects.filter(
-            Q(table__owner=self.request.user) | Q(table__collaborators=self.request.user)
-        ).distinct().prefetch_related("players")
+    permission_classes = [AllowAny]
+    queryset = Session.objects.select_related("table").prefetch_related("players").all()
 
     def retrieve(self, request, pk=None):
         session = self.get_object()
@@ -189,7 +96,7 @@ class SessionViewSet(viewsets.GenericViewSet):
 
         if abs(total_buy_in - total_cash_out) > 0.01:
             return Response(
-                {"detail": f"Buy-in total (£{total_buy_in}) does not match cash-out total (£{total_cash_out})."},
+                {"detail": f"Buy-in total ({total_buy_in}) does not match cash-out total ({total_cash_out})."},
                 status=400,
             )
 
