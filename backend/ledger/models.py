@@ -1,25 +1,14 @@
 from django.db import models
-from django.contrib.auth.models import User
 
 
 class Table(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_tables")
-    collaborators = models.ManyToManyField(User, through="TableCollaborator", related_name="shared_tables", blank=True)
     name = models.CharField(max_length=255)
     default_buy_in = models.DecimalField(max_digits=10, decimal_places=2, default=10)
+    currency = models.CharField(max_length=3, default="GBP")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
-
-
-class TableCollaborator(models.Model):
-    table = models.ForeignKey(Table, on_delete=models.CASCADE, related_name="table_collaborators")
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="collaborations")
-    added_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("table", "user")
 
 
 class TableMember(models.Model):

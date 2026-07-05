@@ -1,0 +1,21 @@
+# Quick local Docker setup for testing (e.g. share with a friend).
+# Run: docker compose -f docker-compose.local.yml up --build
+# Open: http://localhost:8000
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    ports:
+      - "8000:8000"
+    volumes:
+      - poker-ledger-data:/data
+    environment:
+      DEBUG: "True"
+      ALLOWED_HOSTS: "*"
+      SECRET_KEY: local-docker-dev-key
+      DATABASE_URL: sqlite:////data/db.sqlite3
+
+volumes:
+  poker-ledger-data:
