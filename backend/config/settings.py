@@ -100,9 +100,18 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
+CLERK_ISSUER = os.getenv("CLERK_ISSUER", "").rstrip("/")
+
+if CLERK_ISSUER:
+    _AUTH_CLASSES = ["ledger.authentication.ClerkAuthentication"]
+elif DEBUG:
+    _AUTH_CLASSES = ["ledger.authentication.DevBearerAuthentication"]
+else:
+    _AUTH_CLASSES = ["ledger.authentication.ClerkAuthentication"]
+
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": _AUTH_CLASSES,
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
 }

@@ -1,7 +1,7 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Plus, ShieldCheck, AlertCircle, Trash2, UserPlus } from "lucide-react"
+import { ShieldCheck, AlertCircle, Trash2, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,8 +15,15 @@ import {
   ResponsiveDialogDescription,
 } from "@/components/ui/responsive-dialog"
 import { Label } from "@/components/ui/label"
+import BuyInField from "@/components/session/BuyInField"
 import { formatMoney, getCurrencySymbol } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
+import {
+  clearSessionDraft,
+  getSessionDraft,
+  mergeCashOutDraft,
+  setSessionDraft,
+} from "@/lib/sessionDraft"
 import {
   useSession,
   useAddBuyIn,
@@ -37,6 +44,7 @@ export default function SessionPage() {
   const completeSession = useCompleteSession(id)
   const deleteSession = useDeleteSession(id, session?.table)
 
+  const [draftReady, setDraftReady] = useState(false)
   const [addValues, setAddValues] = useState({})
   const [isCashingOut, setIsCashingOut] = useState(false)
   const [cashOutValues, setCashOutValues] = useState({})
@@ -45,6 +53,24 @@ export default function SessionPage() {
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
   const [newPlayerName, setNewPlayerName] = useState("")
   const [addPlayerError, setAddPlayerError] = useState("")
+
+  useEffect(() => {
+    const draft = getSessionDraft(id)
+    setAddValues(draft?.addValues ?? {})
+    setIsCashingOut(draft?.isCashingOut ?? false)
+    setCashOutValues(draft?.cashOutValues ?? {})
+    setDraftReady(true)
+  }, [id])
+
+  useEffect(() => {
+    if (!draftReady || !id) return
+    setSessionDraft(id, { addValues, isCashingOut, cashOutValues })
+  }, [id, draftReady, addValues, isCashingOut, cashOutValues])
+
+  useEffect(() => {
+    if (!session?.players) return
+    setCashOutValues((prev) => mergeCashOutDraft(prev, session.players))
+  }, [session?.players])
 
   if (isLoading && !session) return null
 
@@ -73,6 +99,10 @@ export default function SessionPage() {
     )
   }
 
+  const clearAddValue = (playerId) => {
+    setAddValues((prev) => ({ ...prev, [playerId]: "" }))
+  }
+
   const handleAddPlayer = () => {
     if (!newPlayerName.trim()) return
     setAddPlayerError("")
@@ -87,12 +117,8 @@ export default function SessionPage() {
   }
 
   const handleStartCashOut = () => {
+    setCashOutValues((prev) => mergeCashOutDraft(prev, session.players))
     setIsCashingOut(true)
-    const initialValues = {}
-    session.players.forEach(p => {
-      initialValues[p.id] = p.cash_out !== null ? String(p.cash_out) : ""
-    })
-    setCashOutValues(initialValues)
   }
 
   const handleEndSession = () => {
@@ -102,7 +128,10 @@ export default function SessionPage() {
     }))
 
     completeSession.mutate(cashOuts, {
-      onSuccess: () => navigate(`/summary/${id}`),
+      onSuccess: () => {
+        clearSessionDraft(id)
+        navigate(`/summary/${id}`)
+      },
       onError: (err) => alert(err.message),
     })
   }
@@ -110,7 +139,10 @@ export default function SessionPage() {
   const handleDeleteSession = () => {
     if (!window.confirm("Delete this session? This cannot be undone.")) return
     deleteSession.mutate(undefined, {
-      onSuccess: () => navigate(`/table/${session.table}`, { replace: true }),
+      onSuccess: () => {
+        clearSessionDraft(id)
+        navigate(`/table/${session.table}`, { replace: true })
+      },
     })
   }
 
@@ -148,29 +180,17 @@ export default function SessionPage() {
                 </motion.div>
               </CardHeader>
               <CardContent>
-                <Label className="mb-2 block text-xs text-muted-foreground">Add buy-in</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">{currencySymbol}</span>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={addValues[p.id] || ""}
-                      onChange={(e) => setAddValues({ ...addValues, [p.id]: e.target.value })}
-                      disabled={session.is_completed}
-                      className="pl-8"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    className="h-11 shrink-0 px-4"
-                    onClick={() => handleAddSubmit(p.id)}
-                    disabled={session.is_completed || !parseFloat(addValues[p.id]) || addBuyIn.isPending}
-                  >
-                    <Plus className="mr-1 size-4" /> Add
-                  </Button>
-                </div>
+                <BuyInField
+                  playerId={p.id}
+                  playerName={p.name}
+                  currencySymbol={currencySymbol}
+                  value={addValues[p.id] || ""}
+                  onChange={(value) => setAddValues((prev) => ({ ...prev, [p.id]: value }))}
+                  onClear={() => clearAddValue(p.id)}
+                  onSubmit={() => handleAddSubmit(p.id)}
+                  disabled={session.is_completed}
+                  isPending={addBuyIn.isPending}
+                />
               </CardContent>
             </Card>
           ))}
@@ -212,23 +232,38 @@ export default function SessionPage() {
                   <span className="font-bold">{p.name}</span>
                   <Badge variant="outline" className="text-xs">In: {formatMoney(p.total_buy_in, currency)}</Badge>
                 </CardHeader>
-                <CardContent>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">{currencySymbol}</span>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Cash out amount"
-                      value={cashOutValues[p.id] || ""}
-                      onChange={(e) => setCashOutValues({ ...cashOutValues, [p.id]: e.target.value })}
-                      className="pl-8 text-lg font-semibold"
-                    />
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Cash out</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">{currencySymbol}</span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        placeholder="Cash out amount"
+                        value={cashOutValues[p.id] || ""}
+                        onChange={(e) => setCashOutValues((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        className="pl-8 text-lg font-semibold"
+                      />
+                    </div>
+                    {cashOutValues[p.id] !== "" && (
+                      <p className={`text-right text-xs font-semibold ${val - parseFloat(p.total_buy_in) > 0 ? "text-emerald-600" : val - parseFloat(p.total_buy_in) < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                        Net: {val - parseFloat(p.total_buy_in) > 0 ? "+" : ""}{formatMoney(val - parseFloat(p.total_buy_in), currency)}
+                      </p>
+                    )}
                   </div>
-                  {cashOutValues[p.id] !== "" && (
-                    <p className={`mt-2 text-right text-xs font-semibold ${val - parseFloat(p.total_buy_in) > 0 ? "text-emerald-600" : val - parseFloat(p.total_buy_in) < 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                      Net: {val - parseFloat(p.total_buy_in) > 0 ? "+" : ""}{formatMoney(val - parseFloat(p.total_buy_in), currency)}
-                    </p>
-                  )}
+                  <BuyInField
+                    playerId={p.id}
+                    playerName={p.name}
+                    currencySymbol={currencySymbol}
+                    value={addValues[p.id] || ""}
+                    onChange={(value) => setAddValues((prev) => ({ ...prev, [p.id]: value }))}
+                    onClear={() => clearAddValue(p.id)}
+                    onSubmit={() => handleAddSubmit(p.id)}
+                    disabled={session.is_completed}
+                    isPending={addBuyIn.isPending}
+                    compact
+                  />
                 </CardContent>
               </Card>
             )
@@ -251,7 +286,7 @@ export default function SessionPage() {
           ) : (
             <div className="flex gap-2">
               <Button variant="outline" className="h-12 flex-1 rounded-xl" onClick={() => setIsCashingOut(false)}>
-                Back
+                Back to buy-ins
               </Button>
               <Button
                 size="lg"

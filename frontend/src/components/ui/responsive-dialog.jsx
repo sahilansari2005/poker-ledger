@@ -16,14 +16,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-function ResponsiveDialog({ ...props }) {
+const ResponsiveDialogModeContext = React.createContext(false)
+
+function useResponsiveDialogMode() {
+  return React.useContext(ResponsiveDialogModeContext)
+}
+
+function ResponsiveDialog({ children, ...props }) {
   const isMobile = useIsMobile()
 
-  if (isMobile) {
-    return <Drawer.Root data-slot="responsive-dialog" shouldScaleBackground {...props} />
-  }
-
-  return <Dialog data-slot="responsive-dialog" {...props} />
+  return (
+    <ResponsiveDialogModeContext.Provider value={isMobile}>
+      {isMobile ? (
+        <Drawer.Root data-slot="responsive-dialog" shouldScaleBackground {...props}>
+          {children}
+        </Drawer.Root>
+      ) : (
+        <Dialog data-slot="responsive-dialog" {...props}>
+          {children}
+        </Dialog>
+      )}
+    </ResponsiveDialogModeContext.Provider>
+  )
 }
 
 function ResponsiveDialogContent({
@@ -32,7 +46,7 @@ function ResponsiveDialogContent({
   showCloseButton = true,
   ...props
 }) {
-  const isMobile = useIsMobile()
+  const isMobile = useResponsiveDialogMode()
 
   if (isMobile) {
     return (
@@ -68,11 +82,53 @@ function ResponsiveDialogContent({
   )
 }
 
+function ResponsiveDialogHeader({ className, ...props }) {
+  return <DialogHeader className={className} {...props} />
+}
+
+function ResponsiveDialogFooter({ className, ...props }) {
+  return <DialogFooter className={className} {...props} />
+}
+
+function ResponsiveDialogTitle({ className, ...props }) {
+  const isMobile = useResponsiveDialogMode()
+
+  if (isMobile) {
+    return (
+      <Drawer.Title
+        data-slot="responsive-dialog-title"
+        className={cn("text-base leading-none font-medium", className)}
+        {...props}
+      />
+    )
+  }
+
+  return <DialogTitle className={className} {...props} />
+}
+
+function ResponsiveDialogDescription({ className, ...props }) {
+  const isMobile = useResponsiveDialogMode()
+
+  if (isMobile) {
+    return (
+      <Drawer.Description
+        data-slot="responsive-dialog-description"
+        className={cn("text-sm text-muted-foreground", className)}
+        {...props}
+      />
+    )
+  }
+
+  return <DialogDescription className={className} {...props} />
+}
+
 export {
   ResponsiveDialog,
   ResponsiveDialogContent,
-  DialogHeader as ResponsiveDialogHeader,
-  DialogFooter as ResponsiveDialogFooter,
-  DialogTitle as ResponsiveDialogTitle,
-  DialogDescription as ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogFooter,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+  ResponsiveDialogModeContext,
+  useResponsiveDialogMode,
 }

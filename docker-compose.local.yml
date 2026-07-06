@@ -1,14 +1,24 @@
-# Quick local Docker setup for testing (e.g. share with a friend).
-# Run: docker compose -f docker-compose.local.yml up --build
-# Open: http://localhost:8000
+# Local Docker setup — one command, no Clerk, data persisted in a volume.
+#
+#   docker compose -f docker-compose.local.yml up --build
+#   open http://localhost:8000
+#
+# Stop and remove containers (keeps data):
+#   docker compose -f docker-compose.local.yml down
+#
+# Reset data:
+#   docker compose -f docker-compose.local.yml down -v
 
 services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.local
+      dockerfile: Dockerfile
+      target: local
+      args:
+        VITE_ALLOW_DEV_AUTH: "true"
     ports:
-      - "8000:8000"
+      - "${HOST_PORT:-8000}:8000"
     volumes:
       - poker-ledger-data:/data
     environment:
@@ -16,6 +26,19 @@ services:
       ALLOWED_HOSTS: "*"
       SECRET_KEY: local-docker-dev-key
       DATABASE_URL: sqlite:////data/db.sqlite3
+      WEB_CONCURRENCY: "1"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
 
 volumes:
   poker-ledger-data:

@@ -1,10 +1,21 @@
-from pathlib import Path
+import mimetypes
 
 from django.conf import settings
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.views import View
 
 FRONTEND_ROOT = settings.BASE_DIR / "static" / "frontend"
+
+FRONTEND_CONTENT_TYPES = {
+    "manifest.webmanifest": "application/manifest+json",
+    "sw.js": "application/javascript",
+    "registerSW.js": "application/javascript",
+}
+
+
+class HealthView(View):
+    def get(self, request):
+        return JsonResponse({"status": "ok"})
 
 
 class FrontendAssetView(View):
@@ -24,7 +35,11 @@ class FrontendFileView(View):
             raise Http404
         if not file_path.is_file():
             raise Http404
-        return FileResponse(open(file_path, "rb"))
+        content_type = FRONTEND_CONTENT_TYPES.get(
+            path,
+            mimetypes.guess_type(path)[0] or "application/octet-stream",
+        )
+        return FileResponse(open(file_path, "rb"), content_type=content_type)
 
 
 class SPAView(View):
