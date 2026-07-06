@@ -296,7 +296,7 @@ export default function TablePage() {
               </div>
               <div className="space-y-2">
                 <Label>Members (comma separated)</Label>
-                <Input value={editMembersStr} onChange={e => setEditMembersStr(e.target.value)} placeholder="Ali, Fayyad, John" className="h-11 bg-background/50" />
+                <Input value={editMembersStr} onChange={e => setEditMembersStr(e.target.value)} placeholder="John, Jane, Daniel" className="h-11 bg-background/50" />
               </div>
               {settingsError && <p className="text-sm text-destructive">{settingsError}</p>}
               <ResponsiveDialogFooter>

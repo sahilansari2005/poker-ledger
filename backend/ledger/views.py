@@ -1,6 +1,5 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import Table, Session, SessionPlayer
@@ -16,8 +15,12 @@ from .serializers import (
 
 class TableViewSet(viewsets.ModelViewSet):
     serializer_class = TableSerializer
-    permission_classes = [AllowAny]
-    queryset = Table.objects.prefetch_related("members").all()
+
+    def get_queryset(self):
+        return Table.objects.filter(owner_id=self.request.user.id).prefetch_related("members")
+
+    def perform_create(self, serializer):
+        serializer.save(owner_id=self.request.user.id)
 
     @action(detail=True, methods=["get", "post"], url_path="sessions")
     def sessions(self, request, pk=None):
@@ -35,8 +38,13 @@ class TableViewSet(viewsets.ModelViewSet):
 
 class SessionViewSet(viewsets.GenericViewSet):
     serializer_class = SessionSerializer
-    permission_classes = [AllowAny]
-    queryset = Session.objects.select_related("table").prefetch_related("players").all()
+
+    def get_queryset(self):
+        return (
+            Session.objects.filter(table__owner_id=self.request.user.id)
+            .select_related("table")
+            .prefetch_related("players")
+        )
 
     def retrieve(self, request, pk=None):
         session = self.get_object()

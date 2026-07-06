@@ -21,6 +21,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -31,6 +34,8 @@ services:
       DEBUG: "False"
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
       DATABASE_URL: postgres://poker_ledger:poker_ledger@db:5432/poker_ledger
+      CLERK_ISSUER: ${CLERK_ISSUER:-}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
 
 volumes:
   postgres-data:

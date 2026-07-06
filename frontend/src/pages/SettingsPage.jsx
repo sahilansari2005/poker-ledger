@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Plus, Trash2, RotateCcw } from "lucide-react"
+import { UserButton, useUser } from "@clerk/clerk-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,6 +17,34 @@ import {
   saveDefaultCurrency,
   getCurrencySymbol,
 } from "@/lib/currency"
+
+const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
+
+function AccountCard() {
+  const { user } = useUser()
+
+  return (
+    <Card className="ui-card-hover">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Account</CardTitle>
+        <CardDescription>Signed in with Clerk.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">
+            {user?.fullName || user?.primaryEmailAddress?.emailAddress || "Signed in"}
+          </p>
+          {user?.primaryEmailAddress?.emailAddress && user?.fullName && (
+            <p className="truncate text-xs text-muted-foreground">
+              {user.primaryEmailAddress.emailAddress}
+            </p>
+          )}
+        </div>
+        <UserButton afterSignOutUrl="/" />
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function SettingsPage() {
   const [values, setValues] = useState(() => loadChipDefaultValues())
@@ -80,6 +109,8 @@ export default function SettingsPage() {
         title="Settings"
         subtitle="Default currency and chip denominations for the calculator."
       />
+
+      {clerkEnabled && <AccountCard />}
 
       <Card className="ui-card-hover">
         <CardHeader className="pb-2">

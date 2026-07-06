@@ -18,6 +18,10 @@ services:
         fromDatabase:
           name: poker-ledger-db
           property: connectionString
+      - key: CLERK_ISSUER
+        sync: false
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
 
 databases:
   - name: poker-ledger-db

@@ -142,7 +142,7 @@ export default function Dashboard() {
                 id="members"
                 value={membersStr}
                 onChange={e => setMembersStr(e.target.value)}
-                placeholder="Ali, Fayyad, John"
+                placeholder="John, Jane, Daniel"
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

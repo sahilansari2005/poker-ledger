@@ -23,8 +23,8 @@ class TableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Table
-        fields = ("id", "name", "default_buy_in", "currency", "members", "member_names", "created_at")
-        read_only_fields = ("id", "created_at")
+        fields = ("id", "owner_id", "name", "default_buy_in", "currency", "members", "member_names", "created_at")
+        read_only_fields = ("id", "owner_id", "created_at")
 
     def validate_currency(self, value):
         code = (value or "GBP").upper()
@@ -79,8 +79,13 @@ class SessionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         player_names = validated_data.pop("player_names", [])
         session = Session.objects.create(**validated_data)
+        default_buy_in = session.table.default_buy_in
         for name in player_names:
-            SessionPlayer.objects.create(session=session, name=name)
+            SessionPlayer.objects.create(
+                session=session,
+                name=name,
+                total_buy_in=default_buy_in,
+            )
         return session
 
 

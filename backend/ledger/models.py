@@ -2,6 +2,7 @@ from django.db import models
 
 
 class Table(models.Model):
+    owner_id = models.CharField(max_length=64, blank=True, db_index=True)
     name = models.CharField(max_length=255)
     default_buy_in = models.DecimalField(max_digits=10, decimal_places=2, default=10)
     currency = models.CharField(max_length=3, default="GBP")

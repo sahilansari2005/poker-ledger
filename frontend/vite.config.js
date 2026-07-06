@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const backendPort = process.env.BACKEND_PORT || '8000'
 
 export default defineConfig({
   plugins: [
@@ -48,23 +49,9 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'poker-ledger-api',
-              networkTimeoutSeconds: 8,
-              expiration: {
-                maxEntries: 32,
-                maxAgeSeconds: 60 * 5,
-              },
-            },
-          },
-        ],
       },
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     }),
   ],
@@ -80,7 +67,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: `http://127.0.0.1:${backendPort}`,
         changeOrigin: true,
       },
     },
