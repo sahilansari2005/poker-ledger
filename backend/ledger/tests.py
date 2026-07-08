@@ -454,6 +454,109 @@ class IngestAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
+@override_settings(
+    ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"],
+    DEBUG=True,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "ledger-tests",
+        }
+    },
+)
+class CrossUserIsolationTests(TestCase):
+    """Verify that one authenticated user cannot read or mutate another user's data."""
+
+    def setUp(self):
+        cache.clear()
+        self.alice_client, self.alice = auth_client("alice_iso")
+        self.bob_client, self.bob = auth_client("bob_iso")
+
+        # Alice owns a table with one session and one player
+        self.alice_table = Table.objects.create(
+            name="Alice Private Table",
+            default_buy_in="20.00",
+            currency="GBP",
+            owner=self.alice,
+        )
+        self.alice_session = Session.objects.create(table=self.alice_table)
+        self.alice_player = SessionPlayer.objects.create(
+            session=self.alice_session, name="Alice", total_buy_in="20.00"
+        )
+
+    # --- Table isolation ---
+
+    def test_bob_cannot_retrieve_alices_table(self):
+        response = self.bob_client.get(f"/api/tables/{self.alice_table.id}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_bob_cannot_update_alices_table(self):
+        response = self.bob_client.patch(
+            f"/api/tables/{self.alice_table.id}/",
+            {"name": "Hacked"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_bob_cannot_delete_alices_table(self):
+        response = self.bob_client.delete(f"/api/tables/{self.alice_table.id}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Table.objects.filter(id=self.alice_table.id).exists())
+
+    def test_bob_cannot_list_alices_sessions(self):
+        response = self.bob_client.get(f"/api/tables/{self.alice_table.id}/sessions/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- Session isolation ---
+
+    def test_bob_cannot_retrieve_alices_session(self):
+        response = self.bob_client.get(f"/api/sessions/{self.alice_session.id}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_bob_cannot_patch_alices_session_date(self):
+        response = self.bob_client.patch(
+            f"/api/sessions/{self.alice_session.id}/",
+            {"date": "2000-01-01"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_bob_cannot_delete_alices_session(self):
+        response = self.bob_client.delete(f"/api/sessions/{self.alice_session.id}/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Session.objects.filter(id=self.alice_session.id).exists())
+
+    def test_bob_cannot_add_buy_in_to_alices_session(self):
+        response = self.bob_client.post(
+            f"/api/sessions/{self.alice_session.id}/buy-in/",
+            {"player_id": self.alice_player.id, "amount": "10.00"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_bob_cannot_complete_alices_session(self):
+        response = self.bob_client.post(
+            f"/api/sessions/{self.alice_session.id}/complete/",
+            {
+                "cash_outs": [
+                    {"player_id": self.alice_player.id, "cash_out": "20.00"},
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_bob_cannot_view_alices_session_audit_log(self):
+        response = self.bob_client.get(f"/api/sessions/{self.alice_session.id}/audit-log/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_bobs_table_list_does_not_include_alices_tables(self):
+        response = self.bob_client.get("/api/tables/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [t["id"] for t in response.json()]
+        self.assertNotIn(self.alice_table.id, ids)
+
+
 @override_settings(ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"])
 class FrontendAssetTests(TestCase):
     def test_health_endpoint_is_public(self):
