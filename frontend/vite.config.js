@@ -48,6 +48,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/_allauth/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
       },
       devOptions: {
@@ -67,6 +68,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
+        target: `http://127.0.0.1:${backendPort}`,
+        changeOrigin: true,
+      },
+      '/_allauth': {
         target: `http://127.0.0.1:${backendPort}`,
         changeOrigin: true,
       },

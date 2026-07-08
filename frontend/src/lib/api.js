@@ -1,23 +1,23 @@
+import { getCSRFToken } from "./django"
+
 const BASE_URL = import.meta.env.VITE_API_URL || "/api"
 
-let authTokenGetter = async () => null
-
-export function setAuthTokenGetter(getter) {
-  authTokenGetter = getter
-}
-
 async function request(path, options = {}) {
-  const token = await authTokenGetter()
+  const method = (options.method || "GET").toUpperCase()
   const headers = {
     "Content-Type": "application/json",
     ...options.headers,
   }
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
+  if (method !== "GET" && method !== "HEAD") {
+    headers["X-CSRFToken"] = getCSRFToken()
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  })
 
   if (res.status === 204) return null
 
@@ -32,6 +32,22 @@ async function request(path, options = {}) {
   }
 
   return data
+}
+
+export const meApi = {
+  get: () => request("/me/"),
+
+  update: (fields) =>
+    request("/me/", {
+      method: "PATCH",
+      body: JSON.stringify(fields),
+    }),
+
+  ingest: (payload) =>
+    request("/me/ingest/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 }
 
 export const tablesApi = {
@@ -63,17 +79,29 @@ export const tablesApi = {
 
   destroy: (id) => request(`/tables/${id}/`, { method: "DELETE" }),
 
-  listSessions: (tableId) => request(`/tables/${tableId}/sessions/`),
+  listSessions: (tableId, ordering = "-date") => {
+    const params = new URLSearchParams({ ordering })
+    return request(`/tables/${tableId}/sessions/?${params}`)
+  },
 
-  createSession: (tableId, playerNames) =>
+  createSession: (tableId, playerNames, date) =>
     request(`/tables/${tableId}/sessions/`, {
       method: "POST",
-      body: JSON.stringify({ player_names: playerNames }),
+      body: JSON.stringify({
+        player_names: playerNames,
+        ...(date ? { date } : {}),
+      }),
     }),
 }
 
 export const sessionsApi = {
   get: (id) => request(`/sessions/${id}/`),
+
+  update: (id, fields) =>
+    request(`/sessions/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(fields),
+    }),
 
   destroy: (id) => request(`/sessions/${id}/`, { method: "DELETE" }),
 
@@ -89,9 +117,14 @@ export const sessionsApi = {
       body: JSON.stringify({ name }),
     }),
 
-  complete: (sessionId, cashOuts) =>
+  complete: (sessionId, cashOuts, { allowDiscrepancy = false } = {}) =>
     request(`/sessions/${sessionId}/complete/`, {
       method: "POST",
-      body: JSON.stringify({ cash_outs: cashOuts }),
+      body: JSON.stringify({
+        cash_outs: cashOuts,
+        allow_discrepancy: allowDiscrepancy,
+      }),
     }),
+
+  auditLog: (sessionId) => request(`/sessions/${sessionId}/audit-log/`),
 }

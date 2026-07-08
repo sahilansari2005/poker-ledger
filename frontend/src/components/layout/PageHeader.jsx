@@ -37,7 +37,7 @@ export default function PageHeader({
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{title}</h1>
           {subtitle && (
-            <p className="mt-1 text-sm font-medium text-muted-foreground">{subtitle}</p>
+            <div className="mt-1 text-sm font-medium text-muted-foreground">{subtitle}</div>
           )}
         </div>
         {action && <div className="shrink-0">{action}</div>}

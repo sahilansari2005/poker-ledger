@@ -4,7 +4,7 @@ export default function StickyActionBar({ children, className }) {
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 p-4 backdrop-blur-lg pb-[max(1rem,env(safe-area-inset-bottom))]",
+        "sticky-action-bar fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 p-4 backdrop-blur-lg pb-[max(1rem,env(safe-area-inset-bottom))]",
         className
       )}
     >

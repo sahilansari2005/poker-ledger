@@ -3,6 +3,14 @@
 #   docker compose up --build
 
 services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   db:
     image: postgres:16-alpine
     environment:
@@ -22,20 +30,22 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-      args:
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       DEBUG: "False"
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
       DATABASE_URL: postgres://poker_ledger:poker_ledger@db:5432/poker_ledger
-      CLERK_ISSUER: ${CLERK_ISSUER:-}
+      REDIS_URL: redis://redis:6379/0
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8000}
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      CACHE_TTL: ${CACHE_TTL:-300}
 
 volumes:
   postgres-data:

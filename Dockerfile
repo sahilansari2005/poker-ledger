@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # Targets:
-#   local       — SQLite, debug, no Clerk (for: docker compose -f docker-compose.local.yml up --build)
+#   local       — SQLite, debug (for: docker compose -f docker-compose.local.yml up --build)
 #   production  — Postgres-ready, non-root user (for: docker compose up --build)
 #
 # Build examples:
@@ -16,11 +16,6 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 COPY frontend/ ./
-
-ARG VITE_ALLOW_DEV_AUTH=false
-ARG VITE_CLERK_PUBLISHABLE_KEY=
-ENV VITE_ALLOW_DEV_AUTH=${VITE_ALLOW_DEV_AUTH}
-ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 
 RUN npm run build
 

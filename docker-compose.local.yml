@@ -1,4 +1,4 @@
-# Local Docker setup — one command, no Clerk, data persisted in a volume.
+# Local Docker setup — one command, email/password auth, data persisted in a volume.
 #
 #   docker compose -f docker-compose.local.yml up --build
 #   open http://localhost:8000
@@ -10,23 +10,34 @@
 #   docker compose -f docker-compose.local.yml down -v
 
 services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
       target: local
-      args:
-        VITE_ALLOW_DEV_AUTH: "true"
     ports:
       - "${HOST_PORT:-8000}:8000"
     volumes:
       - poker-ledger-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
     environment:
       DEBUG: "True"
       ALLOWED_HOSTS: "*"
       SECRET_KEY: local-docker-dev-key
       DATABASE_URL: sqlite:////data/db.sqlite3
+      REDIS_URL: redis://redis:6379/0
       WEB_CONCURRENCY: "1"
+      CACHE_TTL: "300"
     healthcheck:
       test:
         [

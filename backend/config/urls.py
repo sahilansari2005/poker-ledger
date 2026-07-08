@@ -6,6 +6,7 @@ from config.views import FrontendAssetView, FrontendFileView, HealthView, SPAVie
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", HealthView.as_view()),
+    path("_allauth/", include("allauth.headless.urls")),
     path("api/", include("ledger.urls")),
     re_path(r"^assets/(?P<path>.*)$", FrontendAssetView.as_view()),
     re_path(

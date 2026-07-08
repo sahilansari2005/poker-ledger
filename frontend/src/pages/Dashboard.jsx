@@ -13,13 +13,15 @@ import {
   ResponsiveDialogFooter,
   ResponsiveDialogDescription,
 } from "@/components/ui/responsive-dialog"
-import { loadDefaultCurrency, formatMoney } from "@/lib/currency"
+import { formatMoney } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useTables, useCreateTable } from "@/lib/queries"
+import { useUserPreferences } from "@/contexts/UserPreferencesContext"
 
 export default function Dashboard() {
   const { data: tables = [] } = useTables()
   const createTable = useCreateTable()
+  const { defaultCurrency } = useUserPreferences()
   const [tablesListRef] = useAnimatedList()
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -37,7 +39,7 @@ export default function Dashboard() {
         name,
         buyIn: parseFloat(buyIn) || 0,
         memberNames: membersStr.split(",").map(s => s.trim()).filter(Boolean),
-        currency: loadDefaultCurrency(),
+        currency: defaultCurrency,
       },
       {
         onSuccess: () => {

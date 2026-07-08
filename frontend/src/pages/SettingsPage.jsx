@@ -1,57 +1,37 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, Trash2, RotateCcw } from "lucide-react"
-import { UserButton, useUser } from "@clerk/clerk-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import PageHeader from "@/components/layout/PageHeader"
 import CurrencySelect from "@/components/CurrencySelect"
-import {
-  FACTORY_CHIP_VALUES,
-  loadChipDefaultValues,
-  saveChipDefaultValues,
-} from "@/lib/chipDefaults"
-import {
-  loadDefaultCurrency,
-  saveDefaultCurrency,
-  getCurrencySymbol,
-} from "@/lib/currency"
-
-const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
-
-function AccountCard() {
-  const { user } = useUser()
-
-  return (
-    <Card className="ui-card-hover">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Account</CardTitle>
-        <CardDescription>Signed in with Clerk.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">
-            {user?.fullName || user?.primaryEmailAddress?.emailAddress || "Signed in"}
-          </p>
-          {user?.primaryEmailAddress?.emailAddress && user?.fullName && (
-            <p className="truncate text-xs text-muted-foreground">
-              {user.primaryEmailAddress.emailAddress}
-            </p>
-          )}
-        </div>
-        <UserButton afterSignOutUrl="/" />
-      </CardContent>
-    </Card>
-  )
-}
+import AccountCard from "@/components/auth/AccountCard"
+import DataImportCard from "@/components/settings/DataImportCard"
+import { FACTORY_CHIP_VALUES } from "@/lib/chipDefaults"
+import { getCurrencySymbol } from "@/lib/currency"
+import { useUserPreferences } from "@/contexts/UserPreferencesContext"
 
 export default function SettingsPage() {
-  const [values, setValues] = useState(() => loadChipDefaultValues())
-  const [currency, setCurrency] = useState(() => loadDefaultCurrency())
+  const {
+    defaultCurrency,
+    chipDefaultValues,
+    savePreferences,
+    isSaving,
+    isReady,
+  } = useUserPreferences()
+
+  const [values, setValues] = useState(chipDefaultValues)
+  const [currency, setCurrency] = useState(defaultCurrency)
   const [saved, setSaved] = useState(false)
   const [currencySaved, setCurrencySaved] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (!isReady) return
+    setValues(chipDefaultValues)
+    setCurrency(defaultCurrency)
+  }, [isReady, chipDefaultValues, defaultCurrency])
 
   const currencySymbol = getCurrencySymbol(currency)
 
@@ -71,7 +51,7 @@ export default function SettingsPage() {
     setSaved(false)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const cleaned = values.map(v => v.trim()).filter(v => v !== "")
     if (cleaned.length === 0) {
       setError("Add at least one chip value.")
@@ -82,35 +62,50 @@ export default function SettingsPage() {
       setError("Each value must be a valid positive number.")
       return
     }
-    saveChipDefaultValues(cleaned)
-    setValues(cleaned)
-    setError("")
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+
+    try {
+      await savePreferences({ chip_default_values: cleaned })
+      setValues(cleaned)
+      setError("")
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err.message || "Could not save chip values.")
+    }
   }
 
-  const handleResetFactory = () => {
-    setValues([...FACTORY_CHIP_VALUES])
-    saveChipDefaultValues(FACTORY_CHIP_VALUES)
-    setError("")
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  const handleResetFactory = async () => {
+    try {
+      await savePreferences({ chip_default_values: [...FACTORY_CHIP_VALUES] })
+      setValues([...FACTORY_CHIP_VALUES])
+      setError("")
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err.message || "Could not reset chip values.")
+    }
   }
 
-  const handleSaveCurrency = () => {
-    saveDefaultCurrency(currency)
-    setCurrencySaved(true)
-    setTimeout(() => setCurrencySaved(false), 2000)
+  const handleSaveCurrency = async () => {
+    try {
+      await savePreferences({ default_currency: currency })
+      setCurrencySaved(true)
+      setTimeout(() => setCurrencySaved(false), 2000)
+    } catch (err) {
+      setError(err.message || "Could not save currency.")
+    }
   }
 
   return (
     <div className="space-y-5 ui-stagger">
       <PageHeader
         title="Settings"
-        subtitle="Default currency and chip denominations for the calculator."
+        subtitle="Account, imports, currency, and chip defaults."
       />
 
-      {clerkEnabled && <AccountCard />}
+      <AccountCard />
+
+      <DataImportCard />
 
       <Card className="ui-card-hover">
         <CardHeader className="pb-2">
@@ -129,8 +124,8 @@ export default function SettingsPage() {
             />
           </div>
           {currencySaved && <p className="text-sm text-primary">Currency saved.</p>}
-          <Button className="h-12 w-full rounded-xl" onClick={handleSaveCurrency}>
-            Save currency
+          <Button className="h-12 w-full rounded-xl" onClick={handleSaveCurrency} disabled={isSaving}>
+            {isSaving ? "Saving…" : "Save currency"}
           </Button>
         </CardContent>
       </Card>
@@ -181,10 +176,10 @@ export default function SettingsPage() {
           {saved && <p className="text-sm text-primary">Saved.</p>}
 
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-            <Button className="h-12 flex-1 rounded-xl" onClick={handleSave}>
-              Save defaults
+            <Button className="h-12 flex-1 rounded-xl" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? "Saving…" : "Save defaults"}
             </Button>
-            <Button variant="outline" className="h-12 flex-1 rounded-xl" onClick={handleResetFactory}>
+            <Button variant="outline" className="h-12 flex-1 rounded-xl" onClick={handleResetFactory} disabled={isSaving}>
               <RotateCcw className="mr-2 size-4" />
               Reset to factory
             </Button>

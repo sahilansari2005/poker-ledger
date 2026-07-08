@@ -48,7 +48,7 @@ docker compose -f docker-compose.local.yml up --build
 | Wipe all data | `docker compose -f docker-compose.local.yml down -v` |
 | View logs | `docker compose -f docker-compose.local.yml logs -f` |
 
-Docker local mode runs without Clerk. Auth uses a built-in dev user so you can use the app immediately.
+Docker local mode uses email/password sign-up on the login page.
 
 ### Option B — Development (hot reload)
 
@@ -79,7 +79,7 @@ cp .env.example .env
 
 Vite proxies `/api` to Django, so use the **5173** URL in the browser.
 
-Without Clerk keys in `.env`, the backend accepts a dev bearer token automatically while `DEBUG=True`.
+Auth uses **django-allauth** with email and password. Sign up or sign in on the login page; the React app uses allauth's headless API with session cookies.
 
 **3. Production-style build (optional)**
 
@@ -104,10 +104,31 @@ Copy `.env.example` to `.env` for local dev. Docker local mode sets these for yo
 | `DEBUG` | `True` | `False` |
 | `ALLOWED_HOSTS` | `127.0.0.1,localhost` | `*` |
 | `DATABASE_URL` | Unset (SQLite) | Postgres (linked in Render) |
-| `CLERK_ISSUER` | Optional | Required when auth is enabled |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Optional | Required at **build time** when auth is enabled |
+| `FRONTEND_URL` | `http://127.0.0.1:5173` | Your public app URL (e.g. `https://your-app.onrender.com`) |
+| `REDIS_URL` | Optional | Recommended on Render for API caching |
+| `CACHE_TTL` | `300` (5 min) | Seconds before cached API responses expire |
 
-Clerk is not required for Docker local testing or for `./start.sh` with `DEBUG=True`.
+After sign-in, the app loads tables and preferences from the Django `User` linked to `LedgerUser`.
+
+### Redis caching (optional, recommended)
+
+API reads (`GET` tables, sessions) are cached per user in Redis. Writes invalidate the relevant cache keys automatically.
+
+**With `./start.sh`:**
+
+```bash
+docker compose -f docker-compose.redis.yml up -d
+```
+
+Add to `.env`:
+
+```env
+REDIS_URL=redis://127.0.0.1:6379/0
+```
+
+Without `REDIS_URL`, Django falls back to in-memory cache (fine for solo dev, not shared across workers).
+
+Docker Compose (`docker-up.sh` and `docker compose up`) includes Redis automatically.
 
 ---
 
@@ -121,7 +142,7 @@ Production is hosted on [Render](https://render.com). Pushing to the `main` bran
 2. In Render: **New → Blueprint** and point it at the repo. Render reads `render.yaml`, which creates:
    - A **web service** (`poker-ledger`) — runs `./build.sh`, then gunicorn
    - A **Postgres database** (`poker-ledger-db`) — linked via `DATABASE_URL`
-3. In the Render dashboard, set any env vars marked `sync: false` in `render.yaml` (e.g. Clerk keys when you enable auth).
+3. In the Render dashboard, set any env vars marked `sync: false` in `render.yaml` (`FRONTEND_URL`, Redis).
 4. Note the public URL Render assigns (e.g. `https://poker-ledger.onrender.com`).
 
 ### Ship a change
