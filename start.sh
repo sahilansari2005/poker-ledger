@@ -39,15 +39,15 @@ while lsof -Pi ":$BACKEND_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; do
 done
 export BACKEND_PORT
 
-echo "==> Starting frontend (http://127.0.0.1:5173)"
-(cd frontend && npm run dev -- --host 127.0.0.1 --port 5173) &
-FRONTEND_PID=$!
-
-sleep 2
-
 echo "==> Starting backend (http://127.0.0.1:$BACKEND_PORT)"
 (cd backend && python manage.py runserver "127.0.0.1:$BACKEND_PORT") &
 BACKEND_PID=$!
+
+sleep 2
+
+echo "==> Starting frontend (http://127.0.0.1:5173)"
+(cd frontend && npm run dev -- --host --port 5173) &
+FRONTEND_PID=$!
 
 echo ""
 echo "Poker Ledger is running:"

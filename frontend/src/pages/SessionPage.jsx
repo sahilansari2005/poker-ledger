@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { motion } from "framer-motion"
 import { ShieldCheck, AlertCircle, Trash2, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
@@ -33,6 +32,8 @@ import {
 } from "@/lib/queries"
 import PageHeader from "@/components/layout/PageHeader"
 import StickyActionBar from "@/components/layout/StickyActionBar"
+import SessionDateEdit from "@/components/session/SessionDateEdit"
+import SessionAuditLog from "@/components/session/SessionAuditLog"
 
 export default function SessionPage() {
   const { id } = useParams()
@@ -53,6 +54,7 @@ export default function SessionPage() {
   const [isAddPlayerOpen, setIsAddPlayerOpen] = useState(false)
   const [newPlayerName, setNewPlayerName] = useState("")
   const [addPlayerError, setAddPlayerError] = useState("")
+  const [isDiscrepancyDialogOpen, setIsDiscrepancyDialogOpen] = useState(false)
 
   useEffect(() => {
     const draft = getSessionDraft(id)
@@ -121,19 +123,37 @@ export default function SessionPage() {
     setIsCashingOut(true)
   }
 
-  const handleEndSession = () => {
+  const totalBuyIn = session.players.reduce((sum, p) => sum + parseFloat(p.total_buy_in), 0)
+  const totalCashOut = session.players.reduce((sum, p) => sum + (parseFloat(cashOutValues[p.id]) || 0), 0)
+  const isBalanced = Math.abs(totalBuyIn - totalCashOut) < 0.01
+  const remainingToDistribute = totalBuyIn - totalCashOut
+  const discrepancyAmount = Math.abs(remainingToDistribute)
+
+  const handleEndSession = (allowDiscrepancy = false) => {
     const cashOuts = session.players.map(p => ({
       player_id: p.id,
       cash_out: parseFloat(cashOutValues[p.id]) || 0,
     }))
 
-    completeSession.mutate(cashOuts, {
-      onSuccess: () => {
-        clearSessionDraft(id)
-        navigate(`/summary/${id}`)
-      },
-      onError: (err) => alert(err.message),
-    })
+    completeSession.mutate(
+      { cashOuts, allowDiscrepancy },
+      {
+        onSuccess: () => {
+          clearSessionDraft(id)
+          setIsDiscrepancyDialogOpen(false)
+          navigate(`/summary/${id}`)
+        },
+        onError: (err) => alert(err.message),
+      }
+    )
+  }
+
+  const handleCompleteClick = () => {
+    if (!isBalanced) {
+      setIsDiscrepancyDialogOpen(true)
+      return
+    }
+    handleEndSession(false)
   }
 
   const handleDeleteSession = () => {
@@ -146,17 +166,18 @@ export default function SessionPage() {
     })
   }
 
-  const totalBuyIn = session.players.reduce((sum, p) => sum + parseFloat(p.total_buy_in), 0)
-  const totalCashOut = session.players.reduce((sum, p) => sum + (parseFloat(cashOutValues[p.id]) || 0), 0)
-  const isBalanced = Math.abs(totalBuyIn - totalCashOut) < 0.01
-  const remainingToDistribute = totalBuyIn - totalCashOut
-
   return (
     <div className="space-y-5 pb-32">
       <PageHeader
         backTo={`/table/${session.table}`}
         title={isCashingOut ? "Cash Out" : "Active Session"}
-        subtitle={`${session.date} · ${session.players.length} players`}
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            <SessionDateEdit sessionId={session.id} tableId={session.table} date={session.date} />
+            <span className="text-border">·</span>
+            <span>{session.players.length} players</span>
+          </span>
+        }
       />
 
       {!isCashingOut ? (
@@ -170,14 +191,9 @@ export default function SessionPage() {
                   </div>
                   <span>{p.name}</span>
                 </div>
-                <motion.div
-                  key={p.total_buy_in}
-                  initial={{ scale: 1.04 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <Badge variant="outline">{formatMoney(p.total_buy_in, currency)}</Badge>
-                </motion.div>
+                <Badge variant="outline" className="tabular-nums">
+                  {formatMoney(p.total_buy_in, currency)}
+                </Badge>
               </CardHeader>
               <CardContent>
                 <BuyInField
@@ -216,10 +232,17 @@ export default function SessionPage() {
                 </div>
               </div>
               {!isBalanced && (
-                <p className="flex items-center justify-center gap-2 text-sm text-destructive">
-                  <AlertCircle className="size-4" />
-                  {formatMoney(remainingToDistribute, currency)} remaining
-                </p>
+                <div className="space-y-1 text-center">
+                  <p className="flex items-center justify-center gap-2 text-sm font-medium text-destructive">
+                    <AlertCircle className="size-4" />
+                    {formatMoney(discrepancyAmount, currency)} discrepancy
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {remainingToDistribute > 0
+                      ? `${formatMoney(remainingToDistribute, currency)} still to distribute`
+                      : `${formatMoney(-remainingToDistribute, currency)} over-distributed`}
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -290,17 +313,51 @@ export default function SessionPage() {
               </Button>
               <Button
                 size="lg"
-                className="h-12 flex-1 rounded-xl"
-                onClick={handleEndSession}
-                disabled={!isBalanced || completeSession.isPending}
+                className={`h-12 flex-1 rounded-xl ${!isBalanced ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
+                onClick={handleCompleteClick}
+                disabled={completeSession.isPending}
               >
                 <ShieldCheck className="mr-2 size-4" />
-                Complete
+                {isBalanced ? "Complete" : "Complete anyway"}
               </Button>
             </div>
           )}
         </StickyActionBar>
       )}
+
+      <SessionAuditLog sessionId={session.id} />
+
+      <ResponsiveDialog open={isDiscrepancyDialogOpen} onOpenChange={setIsDiscrepancyDialogOpen}>
+        <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>Session doesn&apos;t balance</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>
+              Buy-ins and cash-outs don&apos;t match. Are you sure you want to close this session with{" "}
+              <span className="font-semibold text-destructive">{formatMoney(discrepancyAmount, currency)}</span> in discrepancy?
+            </ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2 text-center text-sm">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">In play</p>
+              <p className="font-bold">{formatMoney(totalBuyIn, currency)}</p>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">Cashed out</p>
+              <p className="font-bold">{formatMoney(totalCashOut, currency)}</p>
+            </div>
+          </div>
+          <ResponsiveDialogFooter>
+            <Button variant="ghost" onClick={() => setIsDiscrepancyDialogOpen(false)}>Go back</Button>
+            <Button
+              variant="destructive"
+              onClick={() => handleEndSession(true)}
+              disabled={completeSession.isPending}
+            >
+              {completeSession.isPending ? "Closing…" : "Close session anyway"}
+            </Button>
+          </ResponsiveDialogFooter>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       <ResponsiveDialog open={isAddPlayerOpen} onOpenChange={setIsAddPlayerOpen}>
         <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">

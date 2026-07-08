@@ -28,7 +28,12 @@ function ResponsiveDialog({ children, ...props }) {
   return (
     <ResponsiveDialogModeContext.Provider value={isMobile}>
       {isMobile ? (
-        <Drawer.Root data-slot="responsive-dialog" shouldScaleBackground {...props}>
+        <Drawer.Root
+          data-slot="responsive-dialog"
+          shouldScaleBackground
+          repositionInputs={false}
+          {...props}
+        >
           {children}
         </Drawer.Root>
       ) : (
@@ -55,16 +60,22 @@ function ResponsiveDialogContent({
         <Drawer.Content
           data-slot="responsive-dialog-content"
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[92dvh] flex-col rounded-t-2xl border border-border/50 bg-popover p-4 pb-6 text-popover-foreground shadow-xl outline-none",
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[min(90dvh,100dvh)] flex-col rounded-t-2xl border border-border/50 bg-popover text-popover-foreground shadow-xl outline-none",
             className
           )}
           {...props}
         >
-          <div className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25" />
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25" />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {children}
+          </div>
           {showCloseButton && (
             <Drawer.Close asChild>
-              <Button variant="ghost" className="absolute top-3 right-3" size="icon-sm">
+              <Button
+                variant="ghost"
+                className="absolute top-3 right-3 touch-manipulation"
+                size="icon-sm"
+              >
                 <XIcon />
                 <span className="sr-only">Close</span>
               </Button>
@@ -82,12 +93,45 @@ function ResponsiveDialogContent({
   )
 }
 
-function ResponsiveDialogHeader({ className, ...props }) {
-  return <DialogHeader className={className} {...props} />
+function ResponsiveDialogBody({ className, ...props }) {
+  const isMobile = useResponsiveDialogMode()
+
+  return (
+    <div
+      data-slot="responsive-dialog-body"
+      className={cn(
+        isMobile && "min-h-0 flex-1 overflow-y-auto overscroll-y-contain",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
 function ResponsiveDialogFooter({ className, ...props }) {
-  return <DialogFooter className={className} {...props} />
+  const isMobile = useResponsiveDialogMode()
+
+  return (
+    <DialogFooter
+      className={cn(
+        isMobile &&
+          "mt-auto shrink-0 border-t border-border/20 bg-popover pt-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function ResponsiveDialogHeader({ className, ...props }) {
+  const isMobile = useResponsiveDialogMode()
+
+  return (
+    <DialogHeader
+      className={cn(isMobile && "shrink-0 pr-10 text-left", className)}
+      {...props}
+    />
+  )
 }
 
 function ResponsiveDialogTitle({ className, ...props }) {
@@ -97,7 +141,7 @@ function ResponsiveDialogTitle({ className, ...props }) {
     return (
       <Drawer.Title
         data-slot="responsive-dialog-title"
-        className={cn("text-base leading-none font-medium", className)}
+        className={cn("text-xl leading-tight font-semibold", className)}
         {...props}
       />
     )
@@ -125,6 +169,7 @@ function ResponsiveDialogDescription({ className, ...props }) {
 export {
   ResponsiveDialog,
   ResponsiveDialogContent,
+  ResponsiveDialogBody,
   ResponsiveDialogHeader,
   ResponsiveDialogFooter,
   ResponsiveDialogTitle,

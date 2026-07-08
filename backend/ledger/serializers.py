@@ -1,5 +1,16 @@
+from decimal import Decimal
+
 from rest_framework import serializers
-from .models import Table, TableMember, Session, SessionPlayer
+from .models import (
+    LedgerUser,
+    Table,
+    TableMember,
+    TableTransfer,
+    Session,
+    SessionPlayer,
+    SessionSettlement,
+    SessionAuditEntry,
+)
 
 ALLOWED_CURRENCIES = {
     "GBP", "USD", "EUR", "CAD", "AUD", "AED", "INR", "SGD", "CHF", "JPY", "NZD", "HKD",
@@ -12,8 +23,16 @@ class TableMemberSerializer(serializers.ModelSerializer):
         fields = ("id", "name")
 
 
+class TableTransferSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TableTransfer
+        fields = ("id", "from_player", "to_player", "amount", "note", "created_at")
+        read_only_fields = fields
+
+
 class TableSerializer(serializers.ModelSerializer):
     members = TableMemberSerializer(many=True, read_only=True)
+    transfers = TableTransferSerializer(many=True, read_only=True)
     member_names = serializers.ListField(
         child=serializers.CharField(max_length=100),
         write_only=True,
@@ -23,7 +42,7 @@ class TableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Table
-        fields = ("id", "owner_id", "name", "default_buy_in", "currency", "members", "member_names", "created_at")
+        fields = ("id", "owner_id", "name", "default_buy_in", "currency", "members", "transfers", "member_names", "created_at")
         read_only_fields = ("id", "owner_id", "created_at")
 
     def validate_currency(self, value):
@@ -61,6 +80,19 @@ class SessionPlayerSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "total_buy_in", "cash_out")
 
 
+class SessionSettlementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionSettlement
+        fields = ("id", "from_player", "to_player", "amount", "order")
+
+
+class SessionAuditEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionAuditEntry
+        fields = ("id", "actor_id", "action", "message", "details", "created_at")
+        read_only_fields = fields
+
+
 class SessionSerializer(serializers.ModelSerializer):
     players = SessionPlayerSerializer(many=True, read_only=True)
     table_currency = serializers.CharField(source="table.currency", read_only=True)
@@ -74,7 +106,7 @@ class SessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Session
         fields = ("id", "table", "table_currency", "date", "is_completed", "players", "player_names", "created_at")
-        read_only_fields = ("id", "table", "date", "is_completed", "created_at")
+        read_only_fields = ("id", "table", "is_completed", "created_at")
 
     def create(self, validated_data):
         player_names = validated_data.pop("player_names", [])
@@ -87,6 +119,13 @@ class SessionSerializer(serializers.ModelSerializer):
                 total_buy_in=default_buy_in,
             )
         return session
+
+
+class SessionDetailSerializer(SessionSerializer):
+    settlements = SessionSettlementSerializer(many=True, read_only=True)
+
+    class Meta(SessionSerializer.Meta):
+        fields = SessionSerializer.Meta.fields + ("settlements",)
 
 
 class AddBuyInSerializer(serializers.Serializer):
@@ -105,3 +144,87 @@ class CashOutPlayerSerializer(serializers.Serializer):
 
 class CompleteSessionSerializer(serializers.Serializer):
     cash_outs = CashOutPlayerSerializer(many=True)
+    allow_discrepancy = serializers.BooleanField(required=False, default=False)
+
+
+class IngestPlayerSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    total_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+    cash_out = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+
+
+class IngestSessionSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    players = IngestPlayerSerializer(many=True, min_length=1)
+
+
+class IngestTransferSerializer(serializers.Serializer):
+    from_player = serializers.CharField(max_length=100)
+    to_player = serializers.CharField(max_length=100)
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0.01"))
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+
+class IngestTableSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    default_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+    currency = serializers.CharField(max_length=3)
+    member_names = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False,
+        default=list,
+    )
+    sessions = IngestSessionSerializer(many=True, required=False, default=list)
+    transfers = IngestTransferSerializer(many=True, required=False, default=list)
+
+    def validate_currency(self, value):
+        code = (value or "GBP").upper()
+        if code not in ALLOWED_CURRENCIES:
+            raise serializers.ValidationError(f"Unsupported currency: {value}")
+        return code
+
+
+class IngestPayloadSerializer(serializers.Serializer):
+    tables = IngestTableSerializer(many=True, min_length=1)
+
+
+class LedgerUserSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = LedgerUser
+        fields = (
+            "user_id",
+            "default_currency",
+            "chip_default_values",
+            "session_sort_order",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("user_id", "created_at", "updated_at")
+
+    def validate_default_currency(self, value):
+        code = (value or "GBP").upper()
+        if code not in ALLOWED_CURRENCIES:
+            raise serializers.ValidationError(f"Unsupported currency: {value}")
+        return code
+
+    def validate_chip_default_values(self, value):
+        if not isinstance(value, list) or len(value) == 0:
+            raise serializers.ValidationError("Add at least one chip value.")
+        cleaned = []
+        for item in value:
+            try:
+                amount = float(item)
+            except (TypeError, ValueError) as exc:
+                raise serializers.ValidationError("Each chip value must be a number.") from exc
+            if amount < 0:
+                raise serializers.ValidationError("Chip values must be zero or positive.")
+            cleaned.append(f"{amount:g}" if amount == int(amount) else str(amount))
+        return cleaned
+
+    def validate_session_sort_order(self, value):
+        order = (value or "desc").lower()
+        if order not in {"asc", "desc"}:
+            raise serializers.ValidationError("Sort order must be 'asc' or 'desc'.")
+        return order

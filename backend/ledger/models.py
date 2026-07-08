@@ -1,8 +1,38 @@
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
+
+
+def default_session_date():
+    return timezone.localdate()
+
+
+FACTORY_CHIP_VALUES = ["0.25", "1", "5", "25"]
+
+
+def default_chip_values():
+    return list(FACTORY_CHIP_VALUES)
+
+
+class LedgerUser(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ledger_profile")
+    default_currency = models.CharField(max_length=3, default="GBP")
+    chip_default_values = models.JSONField(default=default_chip_values)
+    session_sort_order = models.CharField(max_length=4, default="desc")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.user)
 
 
 class Table(models.Model):
-    owner_id = models.CharField(max_length=64, blank=True, db_index=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tables",
+        db_index=True,
+    )
     name = models.CharField(max_length=255)
     default_buy_in = models.DecimalField(max_digits=10, decimal_places=2, default=10)
     currency = models.CharField(max_length=3, default="GBP")
@@ -23,9 +53,24 @@ class TableMember(models.Model):
         return f"{self.name} @ {self.table.name}"
 
 
+class TableTransfer(models.Model):
+    table = models.ForeignKey(Table, on_delete=models.CASCADE, related_name="transfers")
+    from_player = models.CharField(max_length=100)
+    to_player = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"{self.from_player} → {self.to_player}: {self.amount}"
+
+
 class Session(models.Model):
     table = models.ForeignKey(Table, on_delete=models.CASCADE, related_name="sessions")
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(default=default_session_date)
     is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -41,3 +86,32 @@ class SessionPlayer(models.Model):
 
     def __str__(self):
         return f"{self.name} in session {self.session.id}"
+
+
+class SessionSettlement(models.Model):
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="settlements")
+    from_player = models.CharField(max_length=100)
+    to_player = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"{self.from_player} → {self.to_player}: {self.amount}"
+
+
+class SessionAuditEntry(models.Model):
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="audit_entries")
+    actor_id = models.CharField(max_length=64, blank=True, db_index=True)
+    action = models.CharField(max_length=50)
+    message = models.TextField()
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.action} @ {self.created_at}"

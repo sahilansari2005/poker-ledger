@@ -19,8 +19,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
     "rest_framework",
     "corsheaders",
+    "allauth",
+    "allauth.account",
+    "allauth.headless",
     "ledger",
 ]
 
@@ -32,15 +36,30 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-_cors_origins = os.getenv(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174",
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173").rstrip("/")
+
+_local_dev_origins = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 )
-CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+_env_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _env_origins:
+    CORS_ALLOWED_ORIGINS = list(dict.fromkeys([*_env_origins, FRONTEND_URL]))
+else:
+    CORS_ALLOWED_ORIGINS = list(dict.fromkeys([*_local_dev_origins, FRONTEND_URL]))
+if DEBUG:
+    CORS_ALLOWED_ORIGINS = list(dict.fromkeys([*CORS_ALLOWED_ORIGINS, *_local_dev_origins, FRONTEND_URL]))
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+SITE_ID = 1
 
 ROOT_URLCONF = "config.urls"
 
@@ -100,17 +119,43 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
 
-CLERK_ISSUER = os.getenv("CLERK_ISSUER", "").rstrip("/")
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+CACHE_TTL = int(os.getenv("CACHE_TTL", "300"))
 
-if CLERK_ISSUER:
-    _AUTH_CLASSES = ["ledger.authentication.ClerkAuthentication"]
-elif DEBUG:
-    _AUTH_CLASSES = ["ledger.authentication.DevBearerAuthentication"]
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+            "KEY_PREFIX": "poker-ledger",
+        }
+    }
 else:
-    _AUTH_CLASSES = ["ledger.authentication.ClerkAuthentication"]
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "poker-ledger-local",
+        }
+    }
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+HEADLESS_ONLY = True
+
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": _AUTH_CLASSES,
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],

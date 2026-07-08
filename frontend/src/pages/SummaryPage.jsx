@@ -7,6 +7,9 @@ import { formatMoney } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useSession } from "@/lib/queries"
 import PageHeader from "@/components/layout/PageHeader"
+import SessionDateEdit from "@/components/session/SessionDateEdit"
+import SessionSettlement from "@/components/session/SessionSettlement"
+import SessionAuditLog from "@/components/session/SessionAuditLog"
 
 export default function SummaryPage() {
   const { id } = useParams()
@@ -44,7 +47,9 @@ export default function SummaryPage() {
       <PageHeader
         backTo={`/table/${session.table}`}
         title="Session Summary"
-        subtitle={session.date}
+        subtitle={
+          <SessionDateEdit sessionId={session.id} tableId={session.table} date={session.date} />
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -131,6 +136,10 @@ export default function SummaryPage() {
           })}
         </div>
       </section>
+
+      <SessionSettlement settlements={session.settlements} currency={currency} />
+
+      <SessionAuditLog sessionId={session.id} />
 
       <Button className="h-12 w-full rounded-xl" variant="outline" onClick={() => navigate(`/table/${session.table}`)}>
         <CheckCircle2 className="mr-2 size-4" /> Back to Table

@@ -1,19 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
-import { setAuthTokenGetter, tablesApi } from "./api.js"
+import { tablesApi } from "./api.js"
 
 describe("api request helper", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn())
-    setAuthTokenGetter(async () => null)
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it("lists tables from /api/tables/", async () => {
+  it("lists tables from /api/tables/ with credentials", async () => {
     fetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -23,49 +22,36 @@ describe("api request helper", () => {
     const data = await tablesApi.list()
 
     expect(fetch).toHaveBeenCalledWith("/api/tables/", {
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
     })
     expect(data).toEqual([{ id: 1, name: "Friday Night" }])
   })
 
-  it("sends Authorization header when a token getter is set", async () => {
-    setAuthTokenGetter(async () => "test-token")
+  it("sends CSRF header on mutating requests", async () => {
+    vi.stubGlobal("document", { cookie: "csrftoken=test-csrf" })
 
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => [],
-    })
-
-    await tablesApi.list()
-
-    expect(fetch).toHaveBeenCalledWith("/api/tables/", {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer test-token",
-      },
-    })
-  })
-
-  it("creates a table with POST /api/tables/", async () => {
     fetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
       json: async () => ({ id: 2, name: "Sunday Game" }),
     })
 
-    const data = await tablesApi.create("Sunday Game", 20, ["Alice"])
+    await tablesApi.create("Sunday Game", 20, ["Alice"])
 
     expect(fetch).toHaveBeenCalledWith("/api/tables/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "test-csrf",
+      },
       body: JSON.stringify({
         name: "Sunday Game",
         default_buy_in: 20,
         member_names: ["Alice"],
       }),
     })
-    expect(data.name).toBe("Sunday Game")
   })
 
   it("surfaces API errors", async () => {
@@ -89,20 +75,5 @@ describe("built service worker", () => {
 
     expect(swSource).not.toMatch(/\/api\//)
     expect(swSource).not.toMatch(/poker-ledger-api/)
-  })
-})
-
-describe("local env", () => {
-  it("does not point VITE_API_URL at a hardcoded dead port", () => {
-    const envLocalPath = resolve(process.cwd(), ".env.local")
-    let envLocal = ""
-    try {
-      envLocal = readFileSync(envLocalPath, "utf8")
-    } catch {
-      return
-    }
-
-    expect(envLocal).not.toMatch(/VITE_API_URL=.*8888/)
-    expect(envLocal).not.toMatch(/VITE_API_URL=http:\/\/127\.0\.0\.1:8000\/api/)
   })
 })

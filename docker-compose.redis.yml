@@ -1,0 +1,15 @@
+# Redis only — for local ./start.sh caching.
+#   docker compose -f docker-compose.redis.yml up -d
+# Then in .env:
+#   REDIS_URL=redis://127.0.0.1:6379/0
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
