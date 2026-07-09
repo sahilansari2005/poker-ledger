@@ -73,7 +73,7 @@ def ingest_tables(user, tables_data, *, actor_id):
             table = Table.objects.create(
                 owner=user,
                 name=table_data["name"],
-                default_buy_in=table_data["default_buy_in"],
+                default_buy_in=table_data.get("default_buy_in", "20.00"),
                 currency=table_data["currency"],
             )
 
