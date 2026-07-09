@@ -2,6 +2,18 @@ import { getCSRFToken } from "./django"
 
 const BASE_URL = import.meta.env.VITE_API_URL || "/api"
 
+function extractErrorMessage(data) {
+  if (!data || typeof data !== "object") return String(data)
+  const messages = []
+  function collect(val) {
+    if (typeof val === "string") messages.push(val)
+    else if (Array.isArray(val)) val.forEach(collect)
+    else if (typeof val === "object" && val !== null) Object.values(val).forEach(collect)
+  }
+  collect(data)
+  return messages.join(" ")
+}
+
 async function request(path, options = {}) {
   const method = (options.method || "GET").toUpperCase()
   const headers = {
@@ -24,10 +36,7 @@ async function request(path, options = {}) {
   const data = await res.json()
 
   if (!res.ok) {
-    const message =
-      data?.detail ||
-      Object.values(data).flat().join(" ") ||
-      "Something went wrong"
+    const message = data?.detail || extractErrorMessage(data) || "Something went wrong"
     throw new Error(message)
   }
 

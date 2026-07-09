@@ -167,7 +167,7 @@ class IngestTransferSerializer(serializers.Serializer):
 
 class IngestTableSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
-    default_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+    default_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False, default=Decimal("20.00"))
     currency = serializers.CharField(max_length=3)
     member_names = serializers.ListField(
         child=serializers.CharField(max_length=100),
