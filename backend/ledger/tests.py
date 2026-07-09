@@ -385,22 +385,20 @@ class IngestAPITests(TestCase):
             1,
         )
 
-    def test_ingest_normalizes_player_name_aliases(self):
+    def test_ingest_preserves_player_names_as_given(self):
         payload = {
             "tables": [
                 {
-                    "name": "Alias Test",
+                    "name": "Name Test",
                     "default_buy_in": "10.00",
                     "currency": "GBP",
-                    "member_names": ["Aly", "Aanya", "Manchit"],
+                    "member_names": ["Alice", "Bob"],
                     "sessions": [
                         {
                             "date": "2026-04-05",
                             "players": [
-                                {"name": "Aly", "total_buy_in": "10.00", "cash_out": "15.00"},
-                                {"name": "Aaliyah", "total_buy_in": "5.00", "cash_out": "0.00"},
-                                {"name": "Aanya C", "total_buy_in": "10.00", "cash_out": "8.00"},
-                                {"name": "Manchit", "total_buy_in": "10.00", "cash_out": "7.00"},
+                                {"name": "Alice", "total_buy_in": "10.00", "cash_out": "15.00"},
+                                {"name": "Bob", "total_buy_in": "10.00", "cash_out": "5.00"},
                             ],
                         }
                     ],
@@ -411,16 +409,15 @@ class IngestAPITests(TestCase):
         response = self.client.post("/api/me/ingest/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        table = Table.objects.get(name="Alias Test")
+        table = Table.objects.get(name="Name Test")
         member_names = set(table.members.values_list("name", flat=True))
-        self.assertEqual(member_names, {"Aaliyah", "AanyaC", "Manshit"})
+        self.assertEqual(member_names, {"Alice", "Bob"})
 
         session = table.sessions.get()
         players = {player.name: player for player in session.players.all()}
-        self.assertEqual(len(players), 3)
-        self.assertEqual(players["Aaliyah"].total_buy_in, Decimal("15.00"))
-        self.assertEqual(players["AanyaC"].cash_out, Decimal("8.00"))
-        self.assertEqual(players["Manshit"].cash_out, Decimal("7.00"))
+        self.assertEqual(len(players), 2)
+        self.assertEqual(players["Alice"].total_buy_in, Decimal("10.00"))
+        self.assertEqual(players["Bob"].cash_out, Decimal("5.00"))
 
     def test_ingest_creates_table_transfers(self):
         payload = {

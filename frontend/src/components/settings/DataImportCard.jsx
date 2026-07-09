@@ -127,7 +127,7 @@ export default function DataImportCard() {
 
         <p className="text-xs text-muted-foreground">
           Sessions with buy-in/cash-out mismatches are imported anyway and marked in the audit log.
-          Name aliases are merged automatically (e.g. Aly → Aaliyah, Aanya / Aanya C → AanyaC, Manchit → Manshit).
+          Player names are stored exactly as provided.
           Use <code className="text-foreground">transfers</code> for off-table cash payments between players.
         </p>
 
