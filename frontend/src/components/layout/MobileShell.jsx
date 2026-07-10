@@ -11,13 +11,15 @@ export default function MobileShell() {
     <div className="min-h-[100dvh] bg-background text-foreground">
       <div
         className={cn(
-          "mx-auto w-full max-w-lg md:max-w-3xl lg:max-w-5xl px-4 pt-safe ui-scroll-surface",
+          "mx-auto w-full max-w-lg px-5 pt-safe ui-scroll-surface md:max-w-2xl lg:max-w-3xl",
           hideNav ? "pb-safe" : "pb-nav"
         )}
       >
-        <PageTransition>
-          <Outlet />
-        </PageTransition>
+        <div className="py-6 md:py-8">
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
+        </div>
       </div>
       {!hideNav && <BottomNav />}
     </div>

@@ -97,24 +97,23 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-5 ui-stagger">
+    <div className="page-stack ui-stagger">
       <PageHeader
         title="Settings"
         subtitle="Account, imports, currency, and chip defaults."
       />
 
       <AccountCard />
-
       <DataImportCard />
 
       <Card className="ui-card-hover">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Default currency</CardTitle>
+        <CardHeader>
+          <CardTitle>Default currency</CardTitle>
           <CardDescription>
             Used for the chip calculator and as the default when you create a new table.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="default-currency">Currency</Label>
             <CurrencySelect
@@ -124,26 +123,26 @@ export default function SettingsPage() {
             />
           </div>
           {currencySaved && <p className="text-sm text-primary">Currency saved.</p>}
-          <Button className="h-12 w-full rounded-xl" onClick={handleSaveCurrency} disabled={isSaving}>
+          <Button className="w-full" size="lg" onClick={handleSaveCurrency} disabled={isSaving}>
             {isSaving ? "Saving…" : "Save currency"}
           </Button>
         </CardContent>
       </Card>
 
       <Card className="ui-card-hover">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Default chip values</CardTitle>
+        <CardHeader>
+          <CardTitle>Default chip values</CardTitle>
           <CardDescription>
             These denominations load when you open the chip calculator or tap Reset.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           {values.map((value, index) => (
-            <div key={index} className="flex items-end gap-2">
-              <div className="flex-1 space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Chip {index + 1} ({currencySymbol})</Label>
+            <div key={index} className="flex items-end gap-3">
+              <div className="flex-1 space-y-2">
+                <Label className="text-caption">Chip {index + 1} ({currencySymbol})</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">{currencySymbol}</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
                   <Input
                     type="number"
                     inputMode="decimal"
@@ -168,19 +167,19 @@ export default function SettingsPage() {
             </div>
           ))}
 
-          <Button variant="outline" className="h-11 w-full" onClick={addRow}>
-            <Plus className="mr-2 size-4" /> Add denomination
+          <Button variant="outline" className="w-full" onClick={addRow}>
+            <Plus className="size-4" /> Add denomination
           </Button>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
           {saved && <p className="text-sm text-primary">Saved.</p>}
 
-          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-            <Button className="h-12 flex-1 rounded-xl" onClick={handleSave} disabled={isSaving}>
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+            <Button className="flex-1" size="lg" onClick={handleSave} disabled={isSaving}>
               {isSaving ? "Saving…" : "Save defaults"}
             </Button>
-            <Button variant="outline" className="h-12 flex-1 rounded-xl" onClick={handleResetFactory} disabled={isSaving}>
-              <RotateCcw className="mr-2 size-4" />
+            <Button variant="outline" className="flex-1" size="lg" onClick={handleResetFactory} disabled={isSaving}>
+              <RotateCcw className="size-4" />
               Reset to factory
             </Button>
           </div>

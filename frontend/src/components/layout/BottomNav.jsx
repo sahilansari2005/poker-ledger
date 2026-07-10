@@ -3,7 +3,7 @@ import { LayoutGrid, Calculator, Trophy, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const links = [
-  { to: "/", label: "Tables", icon: LayoutGrid, end: true },
+  { to: "/tables", label: "Tables", icon: LayoutGrid, end: true },
   { to: "/calculator", label: "Chips", icon: Calculator },
   { to: "/learn", label: "Hands", icon: Trophy },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -23,7 +23,7 @@ export default function BottomNav() {
 
   return (
     <nav className="dock-shell" aria-label="Main navigation">
-      <div className="dock-glass mx-auto flex max-w-md items-stretch justify-between gap-0.5 p-1.5">
+      <div className="dock-glass mx-auto flex max-w-md items-stretch justify-between gap-1 p-1.5">
         <div
           className="dock-indicator"
           style={{
@@ -39,8 +39,8 @@ export default function BottomNav() {
             end={end}
             className={({ isActive }) =>
               cn(
-                "relative z-[2] flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-colors duration-300 touch-manipulation",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground active:scale-95"
+                "relative z-[2] flex min-h-[3.5rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-sm font-medium transition-colors duration-200 touch-manipulation",
+                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground active:scale-[0.98]"
               )
             }
           >
@@ -48,19 +48,12 @@ export default function BottomNav() {
               <>
                 <Icon
                   className={cn(
-                    "size-[1.35rem] transition-all duration-300 ease-out",
-                    isActive && "scale-110 stroke-[2.5]"
+                    "size-5 transition-all duration-200",
+                    isActive && "stroke-[2.25]"
                   )}
                   aria-hidden
                 />
-                <span
-                  className={cn(
-                    "leading-none transition-all duration-300",
-                    isActive ? "opacity-100 translate-y-0" : "opacity-80"
-                  )}
-                >
-                  {label}
-                </span>
+                <span className="leading-none">{label}</span>
               </>
             )}
           </NavLink>

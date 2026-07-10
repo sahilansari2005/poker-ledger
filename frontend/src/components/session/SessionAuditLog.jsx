@@ -23,34 +23,34 @@ export default function SessionAuditLog({ sessionId }) {
   const { data: entries = [], isLoading } = useSessionAuditLog(sessionId)
 
   return (
-    <section className="space-y-3">
+    <section className="section-stack">
       <div className="flex items-center gap-2">
         <History className="size-5 text-muted-foreground" />
-        <h2 className="text-lg font-bold">Activity</h2>
+        <h2 className="text-section">Activity</h2>
       </div>
 
       {isLoading && !entries.length ? (
         <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">Loading activity…</CardContent>
+          <CardContent className="text-caption">Loading activity…</CardContent>
         </Card>
       ) : entries.length === 0 ? (
         <Card>
-          <CardContent className="p-4 text-sm text-muted-foreground">No activity recorded yet.</CardContent>
+          <CardContent className="text-caption">No activity recorded yet.</CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {entries.map((entry) => (
             <Card key={entry.id}>
-              <CardContent className="space-y-2 p-4">
+              <CardContent className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Badge variant={actionVariant(entry.action)}>
                     {ACTION_LABELS[entry.action] || entry.action}
                   </Badge>
-                  <span className="text-xs text-muted-foreground tabular-nums">
+                  <span className="text-caption tabular-nums">
                     {formatAuditTimestamp(entry.created_at)}
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed">{entry.message}</p>
+                <p className="text-body">{entry.message}</p>
               </CardContent>
             </Card>
           ))}

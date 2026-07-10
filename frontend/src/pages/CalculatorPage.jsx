@@ -61,9 +61,9 @@ export default function CalculatorPage() {
   )
 
   return (
-    <div className="space-y-5 ui-scroll-surface">
+    <div className="page-stack ui-scroll-surface">
       <PageHeader
-        title="Chip Calculator"
+        title="Chip calculator"
         subtitle="Enter denominations and counts to total your stack."
         action={
           <Link to="/settings" aria-label="Calculator settings">
@@ -74,28 +74,28 @@ export default function CalculatorPage() {
         }
       />
 
-      <Card className="border-2 border-primary/30 bg-primary/5">
-        <CardContent className="p-5 text-center sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Value</p>
-          <p className="mt-1 text-4xl font-bold tracking-tight text-primary tabular-nums sm:text-5xl">
+      <Card className="border-primary/20 bg-primary/8">
+        <CardContent className="space-y-1 py-8 text-center">
+          <p className="text-caption">Total value</p>
+          <p className="text-title text-primary tabular-nums">
             {formatMoney(total, currency)}
           </p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-          <CardTitle className="text-base">Your Chips</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <CardTitle>Your chips</CardTitle>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={reset} className="h-10">
+            <Button variant="ghost" size="sm" onClick={reset}>
               Reset
             </Button>
-            <Button variant="outline" size="sm" onClick={addRow} className="h-10">
-              <Plus className="mr-1 size-4" /> Add
+            <Button variant="outline" size="sm" onClick={addRow}>
+              <Plus className="size-4" /> Add
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {rows.map((row) => {
             const item = breakdownById.get(row.id)
             return (
@@ -118,21 +118,21 @@ export default function CalculatorPage() {
 
       {activeBreakdown.length > 0 && (
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <Coins className="size-4 text-primary" /> Breakdown
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             {activeBreakdown.map((r) => (
               <div
                 key={r.id}
-                className="flex justify-between border-b border-border/20 py-2 text-sm last:border-0"
+                className="flex justify-between border-b border-border/40 py-3 text-base last:border-0"
               >
-                <span className="text-muted-foreground">
+                <span className="text-caption">
                   {r.count} × {formatMoney(r.value, currency)}
                 </span>
-                <span className="font-semibold tabular-nums">{formatMoney(r.subtotal, currency)}</span>
+                <span className="font-medium tabular-nums">{formatMoney(r.subtotal, currency)}</span>
               </div>
             ))}
           </CardContent>

@@ -9,15 +9,17 @@ import LearnPage from "./pages/LearnPage"
 import CalculatorPage from "./pages/CalculatorPage"
 import SettingsPage from "./pages/SettingsPage"
 import LoginPage from "./pages/LoginPage"
+import LandingPage from "./pages/LandingPage"
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route element={<AllauthAuthGate />}>
           <Route element={<MobileShell />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/tables" element={<Dashboard />} />
             <Route path="/table/:id" element={<TablePage />} />
             <Route path="/session/:id" element={<SessionPage />} />
             <Route path="/summary/:id" element={<SummaryPage />} />

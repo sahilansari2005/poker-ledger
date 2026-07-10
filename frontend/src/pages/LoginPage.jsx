@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -24,7 +24,7 @@ export default function LoginPage() {
         await getConfig()
         const session = await getSession()
         if (!cancelled && isAuthenticatedSession(session)) {
-          navigate("/", { replace: true })
+          navigate("/tables", { replace: true })
         }
       } catch {
         // CSRF priming failed; form submit may still work after retry.
@@ -56,7 +56,7 @@ export default function LoginPage() {
           : await signup(email.trim(), password)
 
       if (response.ok && isAuthenticatedSession(response)) {
-        navigate("/", { replace: true })
+        navigate("/tables", { replace: true })
         return
       }
 
@@ -75,10 +75,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Poker Ledger</CardTitle>
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background p-5">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="space-y-2 text-center">
+          <CardTitle className="text-title">Poker Ledger</CardTitle>
           <CardDescription>
             {mode === "login"
               ? "Sign in to access your tables and preferences."
@@ -87,9 +87,9 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center text-sm text-muted-foreground">Loading…</p>
+            <p className="text-center text-caption">Loading…</p>
           ) : (
-            <form className="space-y-4" onSubmit={handleSubmit}>
+            <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -128,10 +128,10 @@ export default function LoginPage() {
                 </div>
               )}
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button className="h-12 w-full rounded-xl" type="submit" disabled={submitting}>
+              <Button className="w-full" size="lg" type="submit" disabled={submitting}>
                 {submitting ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-center text-caption">
                 {mode === "login" ? "No account yet?" : "Already have an account?"}{" "}
                 <button
                   type="button"
@@ -140,6 +140,11 @@ export default function LoginPage() {
                 >
                   {mode === "login" ? "Sign up" : "Sign in"}
                 </button>
+              </p>
+              <p className="text-center text-caption">
+                <Link to="/" className="text-primary underline-offset-4 hover:underline">
+                  Back to home
+                </Link>
               </p>
             </form>
           )}

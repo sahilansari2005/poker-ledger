@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatMoney } from "@/lib/currency"
+import { profitLossClass } from "@/lib/utils"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useSession } from "@/lib/queries"
 import PageHeader from "@/components/layout/PageHeader"
@@ -20,11 +21,11 @@ export default function SummaryPage() {
   if (isLoading && !session) return null
 
   if (!session) return (
-    <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground animate-in fade-in zoom-in duration-500">
-      <Card className="p-8 flex flex-col items-center bg-card/50 backdrop-blur-md border-border/50">
-        <AlertCircle className="w-12 h-12 mb-4 opacity-50" />
-        <h2 className="text-xl font-bold mb-2">Summary not found</h2>
-        <Button variant="outline" onClick={() => navigate("/")}>Go back home</Button>
+    <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+      <Card className="flex flex-col items-center p-8">
+        <AlertCircle className="mb-4 size-12 opacity-50" />
+        <h2 className="text-section mb-2">Summary not found</h2>
+        <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
       </Card>
     </div>
   )
@@ -43,92 +44,90 @@ export default function SummaryPage() {
   const biggestLoser = sortedPlayers.length > 0 && ((parseFloat(sortedPlayers[sortedPlayers.length - 1].cash_out) || 0) - parseFloat(sortedPlayers[sortedPlayers.length - 1].total_buy_in)) < 0 ? sortedPlayers[sortedPlayers.length - 1] : null
 
   return (
-    <div className="space-y-6">
+    <div className="page-stack">
       <PageHeader
         backTo={`/table/${session.table}`}
-        title="Session Summary"
+        title="Session summary"
         subtitle={
           <SessionDateEdit sessionId={session.id} tableId={session.table} date={session.date} />
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card className="bg-primary/5 border-primary/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Total Pot</CardTitle>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border-primary/20 bg-primary/8">
+          <CardHeader>
+            <CardTitle className="text-caption">Total pot</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{formatMoney(totalPot, currency)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{players.length} players</p>
+            <p className="text-title tabular-nums">{formatMoney(totalPot, currency)}</p>
+            <p className="mt-1 text-caption">{players.length} players</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Biggest Winner</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-caption">Biggest winner</CardTitle>
           </CardHeader>
           <CardContent>
             {biggestWinner ? (
               <>
-                <p className="text-xl font-bold truncate">{biggestWinner.name}</p>
+                <p className="truncate font-medium">{biggestWinner.name}</p>
                 <Badge className="mt-2" variant="outline">
                   +{formatMoney((parseFloat(biggestWinner.cash_out) || 0) - parseFloat(biggestWinner.total_buy_in), currency)}
                 </Badge>
               </>
             ) : (
-              <p className="text-muted-foreground">—</p>
+              <p className="text-caption">—</p>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Biggest Loser</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-caption">Biggest loser</CardTitle>
           </CardHeader>
           <CardContent>
             {biggestLoser ? (
               <>
-                <p className="text-xl font-bold truncate">{biggestLoser.name}</p>
+                <p className="truncate font-medium">{biggestLoser.name}</p>
                 <Badge className="mt-2" variant="outline">
                   {formatMoney((parseFloat(biggestLoser.cash_out) || 0) - parseFloat(biggestLoser.total_buy_in), currency)}
                 </Badge>
               </>
             ) : (
-              <p className="text-muted-foreground">—</p>
+              <p className="text-caption">—</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold">Final Standings</h2>
-        <div ref={standingsRef} className="space-y-3">
+      <section className="section-stack">
+        <h2 className="text-section">Final standings</h2>
+        <div ref={standingsRef} className="space-y-4">
           {sortedPlayers.map((p, i) => {
             const cashOut = parseFloat(p.cash_out) || 0
             const totalBuyIn = parseFloat(p.total_buy_in)
             const profitLoss = cashOut - totalBuyIn
-            const isPositive = profitLoss > 0
-            const isNegative = profitLoss < 0
 
             return (
               <Card key={p.id}>
-                <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-bold">
-                    <span className="flex size-7 items-center justify-center rounded-full bg-secondary text-xs">{i + 1}</span>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-3 font-medium">
+                    <span className="icon-well text-sm">{i + 1}</span>
                     {p.name}
                   </CardTitle>
-                  <Badge variant="outline" className={isPositive ? "text-emerald-600" : isNegative ? "text-destructive" : ""}>
-                    {isPositive ? "+" : ""}{formatMoney(profitLoss, currency)}
+                  <Badge variant="outline" className={`tabular-nums ${profitLossClass(profitLoss)}`}>
+                    {profitLoss > 0 ? "+" : ""}{formatMoney(profitLoss, currency)}
                   </Badge>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-2 px-4 pb-4 text-center text-sm">
-                  <div className="rounded-lg bg-muted/50 p-2">
-                    <p className="text-xs text-muted-foreground">Buy-in</p>
-                    <p className="font-bold">{formatMoney(totalBuyIn, currency)}</p>
+                <CardContent className="grid grid-cols-2 gap-3 text-center">
+                  <div className="rounded-xl bg-muted/40 p-4">
+                    <p className="text-caption">Buy-in</p>
+                    <p className="font-medium tabular-nums">{formatMoney(totalBuyIn, currency)}</p>
                   </div>
-                  <div className="rounded-lg bg-muted/50 p-2">
-                    <p className="text-xs text-muted-foreground">Cashed</p>
-                    <p className="font-bold">{formatMoney(cashOut, currency)}</p>
+                  <div className="rounded-xl bg-muted/40 p-4">
+                    <p className="text-caption">Cashed</p>
+                    <p className="font-medium tabular-nums">{formatMoney(cashOut, currency)}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -138,11 +137,10 @@ export default function SummaryPage() {
       </section>
 
       <SessionSettlement settlements={session.settlements} currency={currency} />
-
       <SessionAuditLog sessionId={session.id} />
 
-      <Button className="h-12 w-full rounded-xl" variant="outline" onClick={() => navigate(`/table/${session.table}`)}>
-        <CheckCircle2 className="mr-2 size-4" /> Back to Table
+      <Button className="w-full" size="lg" variant="outline" onClick={() => navigate(`/table/${session.table}`)}>
+        <CheckCircle2 className="size-4" /> Back to table
       </Button>
     </div>
   )

@@ -63,7 +63,7 @@ export default function DataImportCard() {
       if (result.tables?.length === 1) {
         navigate(`/table/${result.tables[0].id}`)
       } else {
-        navigate("/")
+        navigate("/tables")
       }
     } catch (err) {
       setError(err.message || "Import failed.")

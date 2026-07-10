@@ -8,7 +8,7 @@ export default function CurrencySelect({ value, onChange, id, className }) {
       value={value}
       onChange={e => onChange(e.target.value)}
       className={cn(
-        "flex h-11 w-full rounded-lg border border-input bg-background px-3 text-base shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+        "flex h-11 w-full rounded-xl border border-input bg-card px-3.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
         className
       )}
     >
