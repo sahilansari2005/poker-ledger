@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Plus, Users, Coins, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -74,7 +75,12 @@ export default function Dashboard() {
         {tables.map((table) => (
           <Card key={table.id} className="ui-card-hover">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold truncate">{table.name}</CardTitle>
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="text-lg font-bold truncate">{table.name}</CardTitle>
+                {table.role === "viewer" && (
+                  <Badge variant="outline" className="shrink-0">Viewer</Badge>
+                )}
+              </div>
               <CardDescription className="flex items-center gap-4 text-xs font-medium uppercase tracking-wider">
                 <span className="flex items-center gap-1.5">
                   <Users className="size-3.5" /> {table.members?.length || 0}
