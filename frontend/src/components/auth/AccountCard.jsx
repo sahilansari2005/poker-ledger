@@ -1,33 +1,32 @@
-import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import SectionPill from "@/components/reactbits/SectionPill"
-import { getSession } from "@/lib/allauth"
 import { logout } from "@/lib/allauth"
+import { queryClient } from "@/lib/queryClient"
+import { queryKeys, useAuthSession } from "@/lib/queries"
+
+function accountFromSession(sessionResponse) {
+  const user = sessionResponse?.data?.data?.user
+  if (!user) return null
+  return {
+    name: user.display || user.username,
+    email: user.email,
+  }
+}
 
 export default function AccountCard() {
   const navigate = useNavigate()
-  const [session, setSession] = useState(null)
-
-  useEffect(() => {
-    getSession()
-      .then((response) => {
-        const user = response.data?.data?.user
-        if (!user) return
-        setSession({
-          name: user.display || user.username,
-          email: user.email,
-        })
-      })
-      .catch(() => setSession(null))
-  }, [])
+  const { data: sessionResponse } = useAuthSession()
+  const session = accountFromSession(sessionResponse)
 
   const handleSignOut = async () => {
     try {
       await logout()
     } finally {
+      queryClient.removeQueries({ queryKey: queryKeys.authSession })
+      queryClient.clear()
       navigate("/login", { replace: true })
     }
   }

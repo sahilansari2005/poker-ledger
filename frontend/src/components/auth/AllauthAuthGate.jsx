@@ -1,37 +1,25 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
-import { getSession, isAuthenticatedSession } from "@/lib/allauth"
+import { isAuthenticatedSession } from "@/lib/allauth"
 import { queryClient } from "@/lib/queryClient"
-import { queryKeys } from "@/lib/queries"
+import { queryKeys, useAuthSession } from "@/lib/queries"
 
 export default function AllauthAuthGate() {
   const location = useLocation()
-  const [status, setStatus] = useState("loading")
+  const { data: session, isPending, isError } = useAuthSession()
+  const warmedQueries = useRef(false)
+
+  const authenticated = !isError && isAuthenticatedSession(session)
 
   useEffect(() => {
-    let cancelled = false
-
-    getSession()
-      .then((session) => {
-        if (cancelled) return
-        setStatus(isAuthenticatedSession(session) ? "ready" : "signed-out")
-      })
-      .catch(() => {
-        if (!cancelled) setStatus("signed-out")
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [location.pathname])
-
-  useEffect(() => {
-    if (status !== "ready") return
+    if (!authenticated || warmedQueries.current) return
+    warmedQueries.current = true
+    // Heal preferences/tables if they 401'd on public routes before login.
     queryClient.invalidateQueries({ queryKey: queryKeys.me })
     queryClient.invalidateQueries({ queryKey: queryKeys.tables })
-  }, [status])
+  }, [authenticated])
 
-  if (status === "loading") {
+  if (isPending) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-background text-muted-foreground">
         Loading…
@@ -39,7 +27,7 @@ export default function AllauthAuthGate() {
     )
   }
 
-  if (status === "signed-out") {
+  if (!authenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { getSession } from "@/lib/allauth"
 import { meApi, sessionsApi, sharedApi, tablesApi } from "@/lib/api"
 import { toApiOrdering } from "@/lib/sessionSort"
 
 export const queryKeys = {
+  authSession: ["auth", "session"],
   me: ["me"],
   tables: ["tables"],
   table: (id) => ["tables", id],
@@ -13,6 +15,16 @@ export const queryKeys = {
   tableShareLink: (id) => ["tables", id, "share-link"],
   tableMemberships: (id) => ["tables", id, "memberships"],
   tableRequests: (id) => ["tables", id, "requests"],
+}
+
+export function useAuthSession() {
+  return useQuery({
+    queryKey: queryKeys.authSession,
+    queryFn: getSession,
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
+    retry: false,
+  })
 }
 
 export function useTables() {

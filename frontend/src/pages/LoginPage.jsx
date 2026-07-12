@@ -8,6 +8,8 @@ import AuroraBackdrop from "@/components/reactbits/AuroraBackdrop"
 import ShinyText from "@/components/reactbits/ShinyText"
 import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import { getConfig, getSession, isAuthenticatedSession, login, parseAllauthErrors, signup } from "@/lib/allauth"
+import { queryClient } from "@/lib/queryClient"
+import { queryKeys } from "@/lib/queries"
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -34,6 +36,7 @@ export default function LoginPage() {
         await getConfig()
         const session = await getSession()
         if (!cancelled && isAuthenticatedSession(session)) {
+          queryClient.setQueryData(queryKeys.authSession, session)
           navigate(next, { replace: true })
         }
       } catch {
@@ -66,6 +69,7 @@ export default function LoginPage() {
           : await signup(email.trim(), password)
 
       if (response.ok && isAuthenticatedSession(response)) {
+        queryClient.setQueryData(queryKeys.authSession, response)
         navigate(next, { replace: true })
         return
       }
