@@ -53,11 +53,11 @@ export default function SummaryPage() {
   if (isLoading && !session) return null
 
   if (!session) return (
-    <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground animate-in fade-in zoom-in duration-500">
-      <Card className="p-8 flex flex-col items-center bg-card/50 backdrop-blur-md border-border/50">
-        <AlertCircle className="w-12 h-12 mb-4 opacity-50" />
-        <h2 className="text-xl font-bold mb-2">Summary not found</h2>
-        <Button variant="outline" onClick={() => navigate("/")}>Go back home</Button>
+    <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+      <Card className="flex flex-col items-center p-8">
+        <AlertCircle className="mb-4 size-12 opacity-50" />
+        <h2 className="text-section mb-2">Summary not found</h2>
+        <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
       </Card>
     </div>
   )
@@ -154,10 +154,10 @@ export default function SummaryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="page-stack">
       <PageHeader
         backTo={`/table/${session.table}`}
-        title="Session Summary"
+        title="Session summary"
         subtitle={
           <SessionDateEdit
             sessionId={session.id}
@@ -355,8 +355,8 @@ export default function SummaryPage() {
 
       <SessionAuditLog sessionId={session.id} />
 
-      <Button className="h-12 w-full rounded-xl" variant="outline" onClick={() => navigate(`/table/${session.table}`)}>
-        <CheckCircle2 className="mr-2 size-4" /> Back to Table
+      <Button className="w-full" size="lg" variant="outline" onClick={() => navigate(`/table/${session.table}`)}>
+        <CheckCircle2 className="size-4" /> Back to table
       </Button>
 
       <ResponsiveDialog open={isDiscrepancyDialogOpen} onOpenChange={setIsDiscrepancyDialogOpen}>

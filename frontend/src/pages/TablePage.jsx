@@ -94,8 +94,8 @@ export default function TablePage() {
     <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">
       <Card className="p-8 flex flex-col items-center bg-card/50 backdrop-blur-md border-border/50">
         <Users className="w-12 h-12 mb-4 opacity-50" />
-        <h2 className="text-xl font-bold mb-2">Table not found</h2>
-        <Button variant="outline" onClick={() => navigate("/")}>Go back home</Button>
+        <h2 className="text-section mb-2">Table not found</h2>
+        <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
       </Card>
     </div>
   )
@@ -162,7 +162,7 @@ export default function TablePage() {
     if (!window.confirm("Delete this table and all its sessions? This cannot be undone.")) return
 
     deleteTable.mutate(undefined, {
-      onSuccess: () => navigate("/"),
+      onSuccess: () => navigate("/tables"),
       onError: (err) => setSettingsError(err.message),
     })
   }
@@ -187,7 +187,7 @@ export default function TablePage() {
   return (
     <div className="space-y-6 pb-10">
       <PageHeader
-        backTo="/"
+        backTo="/tables"
         title={table.name}
         subtitle={`${members.length} players · ${formatMoney(table.default_buy_in, table.currency)} buy-in`}
         action={
@@ -217,15 +217,15 @@ export default function TablePage() {
         />
 
         {(table.transfers || []).length > 0 && (
-          <section className="space-y-3">
+          <section className="section-stack">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">Cash transfers</h2>
+              <h2 className="text-section">Cash transfers</h2>
               <Badge variant="outline" className="text-xs">Off-table</Badge>
             </div>
             <Card>
-              <CardContent className="divide-y divide-border/30 p-0">
+              <CardContent className="divide-y divide-border/40 p-0">
                 {table.transfers.map((transfer) => (
-                  <div key={transfer.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                  <div key={transfer.id} className="flex items-center justify-between gap-4 p-5 text-base">
                     <p>
                       <span className="font-medium">{transfer.from_player}</span>
                       <span className="text-muted-foreground"> paid </span>
@@ -239,14 +239,14 @@ export default function TablePage() {
           </section>
         )}
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-bold">Sessions</h2>
+        <section className="section-stack">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-section">Sessions</h2>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 gap-1.5 rounded-lg text-xs"
+                className="h-10 gap-1.5 text-sm"
                 onClick={toggleSessionSort}
                 aria-label={sessionSort === "desc" ? "Sort oldest first" : "Sort newest first"}
               >
@@ -317,9 +317,9 @@ export default function TablePage() {
       />
 
       <ResponsiveDialog open={isStartDialogOpen} onOpenChange={setIsStartDialogOpen}>
-        <ResponsiveDialogContent className="sm:max-w-lg border-border/50 bg-card/80 backdrop-blur-xl">
+        <ResponsiveDialogContent className="sm:max-w-lg">
           <ResponsiveDialogHeader className="pb-2">
-            <ResponsiveDialogTitle className="text-2xl">Who's at the table?</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>Who&apos;s at the table?</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>Select the players participating in this session.</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogBody className="space-y-4">
@@ -328,7 +328,7 @@ export default function TablePage() {
                 const isSelected = selectedMembers.includes(m.name)
                 return (
                   <Badge key={m.id} variant={isSelected ? "default" : "outline"}
-                    className={`cursor-pointer px-4 py-2 text-sm rounded-full transition-all active:scale-95 ${isSelected ? 'bg-primary hover:bg-primary/90 shadow-md' : 'hover:bg-secondary border-border/50'}`}
+                    className="cursor-pointer px-4 py-2 transition-all active:scale-[0.98]"
                     onClick={() => toggleMember(m.name)}>
                     {m.name}
                   </Badge>
@@ -343,15 +343,15 @@ export default function TablePage() {
                 type="date"
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
-                className="h-11 bg-background/50"
+                className="bg-card"
               />
             </div>
           </ResponsiveDialogBody>
           <ResponsiveDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
             <span className="text-center text-sm text-muted-foreground sm:text-left">{selectedMembers.length} selected</span>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button variant="ghost" className="h-11 rounded-xl" onClick={() => setIsStartDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleStartSession} disabled={selectedMembers.length === 0 || createSession.isPending} className="h-11 rounded-xl">
+              <Button variant="ghost" onClick={() => setIsStartDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleStartSession} disabled={selectedMembers.length === 0 || createSession.isPending}>
                 <Play className="w-4 h-4 mr-2" /> {createSession.isPending ? "Starting…" : "Start Game"}
               </Button>
             </div>
@@ -360,9 +360,9 @@ export default function TablePage() {
       </ResponsiveDialog>
 
       <ResponsiveDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <ResponsiveDialogContent className="sm:max-w-lg border-border/50 bg-card/80 backdrop-blur-xl">
+        <ResponsiveDialogContent className="sm:max-w-lg">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle className="text-2xl sm:text-2xl">Table Settings</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>Table settings</ResponsiveDialogTitle>
           </ResponsiveDialogHeader>
           <Tabs value={settingsTab} onValueChange={setSettingsTab} className="flex min-h-0 flex-1 flex-col">
             <TabsList className="w-full shrink-0">
@@ -375,11 +375,11 @@ export default function TablePage() {
               <TabsContent value="general" className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label>Table Name</Label>
-                  <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-11 bg-background/50" />
+                  <Input value={editName} onChange={e => setEditName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Default Buy-in ({getCurrencySymbol(editCurrency)})</Label>
-                  <Input type="number" value={editBuyIn} onChange={e => setEditBuyIn(e.target.value)} className="h-11 bg-background/50" />
+                  <Input type="number" value={editBuyIn} onChange={e => setEditBuyIn(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="table-currency">Currency</Label>
@@ -387,12 +387,11 @@ export default function TablePage() {
                     id="table-currency"
                     value={editCurrency}
                     onChange={setEditCurrency}
-                    className="bg-background/50"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Members (comma separated)</Label>
-                  <Input value={editMembersStr} onChange={e => setEditMembersStr(e.target.value)} placeholder="John, Jane, Daniel" className="h-11 bg-background/50" />
+                  <Input value={editMembersStr} onChange={e => setEditMembersStr(e.target.value)} placeholder="John, Jane, Daniel" />
                 </div>
                 {settingsError && <p className="text-sm text-destructive">{settingsError}</p>}
               </TabsContent>
@@ -474,9 +473,9 @@ export default function TablePage() {
               </TabsContent>
 
               <TabsContent value="danger" className="pt-4">
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
-                  <p className="text-sm font-semibold text-destructive">Delete Table</p>
-                  <p className="text-xs text-muted-foreground">This permanently deletes the table and all its sessions. There is no undo.</p>
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-4">
+                  <p className="text-section text-destructive">Delete table</p>
+                  <p className="text-caption">This permanently deletes the table and all its sessions. There is no undo.</p>
                   <Button variant="destructive" className="w-full" onClick={handleDeleteTable} disabled={deleteTable.isPending}>
                     <Trash2 className="w-4 h-4 mr-2" /> Delete Table
                   </Button>
@@ -486,10 +485,10 @@ export default function TablePage() {
           </Tabs>
           {settingsTab === "general" && (
             <ResponsiveDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button variant="ghost" className="h-11 w-full sm:w-auto" onClick={() => setIsSettingsOpen(false)}>
+              <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setIsSettingsOpen(false)}>
                 Cancel
               </Button>
-              <Button className="h-11 w-full sm:w-auto" onClick={handleSaveTable} disabled={updateTable.isPending}>
+              <Button className="w-full sm:w-auto" onClick={handleSaveTable} disabled={updateTable.isPending}>
                 {updateTable.isPending ? "Saving…" : "Save Changes"}
               </Button>
             </ResponsiveDialogFooter>

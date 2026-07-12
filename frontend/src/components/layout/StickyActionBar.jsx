@@ -4,11 +4,11 @@ export default function StickyActionBar({ children, className }) {
   return (
     <div
       className={cn(
-        "sticky-action-bar fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 p-4 backdrop-blur-lg pb-[max(1rem,env(safe-area-inset-bottom))]",
+        "sticky-action-bar fixed inset-x-0 bottom-0 z-40 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]",
         className
       )}
     >
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-2 md:max-w-3xl lg:max-w-5xl">
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-3 md:max-w-2xl lg:max-w-3xl">
         {children}
       </div>
     </div>

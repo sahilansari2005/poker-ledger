@@ -18,12 +18,12 @@ const CalculatorRow = memo(function CalculatorRow({
   onRemove,
 }) {
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-3 shadow-sm">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Value ({currencySymbol})</Label>
+    <div className="space-y-4 border-b border-border/40 py-5 last:border-0 last:pb-0 first:pt-0">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-caption">Value ({currencySymbol})</Label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
               {currencySymbol}
             </span>
             <Input
@@ -37,8 +37,8 @@ const CalculatorRow = memo(function CalculatorRow({
             />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Count</Label>
+        <div className="space-y-2">
+          <Label className="text-caption">Count</Label>
           <Input
             type="number"
             inputMode="numeric"
@@ -49,18 +49,18 @@ const CalculatorRow = memo(function CalculatorRow({
           />
         </div>
       </div>
-      <div className="flex items-center justify-between">
-        <Badge variant="outline" className="text-sm font-bold tabular-nums">
+      <div className="flex items-center justify-between gap-3">
+        <Badge variant="outline" className="tabular-nums">
           {formatMoney(subtotal, currency)}
         </Badge>
         <Button
           variant="ghost"
           size="sm"
-          className="h-10 text-destructive hover:text-destructive"
+          className="text-destructive hover:text-destructive"
           onClick={() => onRemove(id)}
           disabled={!canRemove}
         >
-          <Trash2 className="mr-1 size-4" /> Remove
+          <Trash2 className="size-4" /> Remove
         </Button>
       </div>
     </div>

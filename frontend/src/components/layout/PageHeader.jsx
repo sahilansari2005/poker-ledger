@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom"
+import { useReducedMotion } from "framer-motion"
 import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import BlurText from "@/components/reactbits/BlurText"
 import { cn } from "@/lib/utils"
 
 export default function PageHeader({
@@ -12,6 +14,8 @@ export default function PageHeader({
   className,
 }) {
   const navigate = useNavigate()
+  const reduce = useReducedMotion()
+  const titleIsString = typeof title === "string"
 
   const handleBack = () => {
     if (onBack) onBack()
@@ -20,25 +24,36 @@ export default function PageHeader({
   }
 
   return (
-    <header className={cn("mb-6 border-b border-border/40 pb-4", className)}>
-      <div className="flex items-start gap-3">
+    <header className={cn("mb-8 border-b border-border/40 pb-6", className)}>
+      <div className="flex items-start gap-4">
         {(backTo || onBack) && (
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="icon"
-            className="mt-0.5 size-11 shrink-0 rounded-full bg-background/80 shadow-sm touch-manipulation"
+            className="mt-0.5 shrink-0 touch-manipulation"
             onClick={handleBack}
             aria-label="Go back"
           >
             <ChevronLeft className="size-5" />
           </Button>
         )}
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">{title}</h1>
-          {subtitle && (
-            <div className="mt-1 text-sm font-medium text-muted-foreground">{subtitle}</div>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          {titleIsString && !reduce ? (
+            <>
+              <h1 className="sr-only">{title}</h1>
+              <BlurText
+                aria-hidden="true"
+                text={title}
+                delay={45}
+                stepDuration={0.28}
+                className="text-title"
+              />
+            </>
+          ) : (
+            <h1 className="text-title">{title}</h1>
           )}
+          {subtitle && <div className="text-caption">{subtitle}</div>}
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>

@@ -30,6 +30,7 @@ import {
   useCompleteSession,
   useDeleteSession,
 } from "@/lib/queries"
+import { profitLossClass } from "@/lib/utils"
 import PageHeader from "@/components/layout/PageHeader"
 import StickyActionBar from "@/components/layout/StickyActionBar"
 import SessionDateEdit from "@/components/session/SessionDateEdit"
@@ -80,8 +81,8 @@ export default function SessionPage() {
     <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">
       <Card className="p-8 flex flex-col items-center bg-card/50 backdrop-blur-md border-border/50">
         <AlertCircle className="w-12 h-12 mb-4 opacity-50" />
-        <h2 className="text-xl font-bold mb-2">Session not found</h2>
-        <Button variant="outline" onClick={() => navigate("/")}>Go back home</Button>
+        <h2 className="text-section mb-2">Session not found</h2>
+        <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
       </Card>
     </div>
   )
@@ -168,7 +169,7 @@ export default function SessionPage() {
   }
 
   return (
-    <div className="space-y-5 pb-32">
+    <div className="page-stack pb-flow">
       <PageHeader
         backTo={`/table/${session.table}`}
         title={isCashingOut ? "Cash Out" : canEdit ? "Active Session" : "Session"}
@@ -188,12 +189,12 @@ export default function SessionPage() {
       />
 
       {!isCashingOut ? (
-        <div ref={playerListRef} className="space-y-4">
+        <div ref={playerListRef} className="space-y-5">
           {session.players.map((p) => (
             <Card key={p.id}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex items-center gap-3 font-bold">
-                  <div className="flex size-9 items-center justify-center rounded-full bg-secondary text-sm">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-3 font-medium">
+                  <div className="icon-well text-sm">
                     {p.name.charAt(0).toUpperCase()}
                   </div>
                   <span>{p.name}</span>
@@ -227,17 +228,17 @@ export default function SessionPage() {
           )}
         </div>
       ) : (
-        <div ref={playerListRef} className="space-y-4">
-          <Card className={isBalanced ? "border-primary/40 bg-primary/5" : "border-destructive/30"}>
-            <CardContent className="space-y-4 p-4">
-              <div className="grid grid-cols-2 gap-4 text-center">
+        <div ref={playerListRef} className="space-y-5">
+          <Card className={isBalanced ? "border-primary/30 bg-primary/8" : "border-destructive/30"}>
+            <CardContent className="space-y-5">
+              <div className="grid grid-cols-2 gap-5 text-center">
                 <div>
-                  <p className="text-xs font-medium uppercase text-muted-foreground">In play</p>
-                  <p className="text-2xl font-bold">{formatMoney(totalBuyIn, currency)}</p>
+                  <p className="text-caption">In play</p>
+                  <p className="text-title tabular-nums">{formatMoney(totalBuyIn, currency)}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase text-muted-foreground">Cashed out</p>
-                  <p className="text-2xl font-bold">{formatMoney(totalCashOut, currency)}</p>
+                  <p className="text-caption">Cashed out</p>
+                  <p className="text-title tabular-nums">{formatMoney(totalCashOut, currency)}</p>
                 </div>
               </div>
               {!isBalanced && (
@@ -246,7 +247,7 @@ export default function SessionPage() {
                     <AlertCircle className="size-4" />
                     {formatMoney(discrepancyAmount, currency)} discrepancy
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-caption">
                     {remainingToDistribute > 0
                       ? `${formatMoney(remainingToDistribute, currency)} still to distribute`
                       : `${formatMoney(-remainingToDistribute, currency)} over-distributed`}
@@ -260,26 +261,26 @@ export default function SessionPage() {
             const val = parseFloat(cashOutValues[p.id]) || 0
             return (
               <Card key={p.id}>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <span className="font-bold">{p.name}</span>
-                  <Badge variant="outline" className="text-xs">In: {formatMoney(p.total_buy_in, currency)}</Badge>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <span className="font-medium">{p.name}</span>
+                  <Badge variant="outline">In: {formatMoney(p.total_buy_in, currency)}</Badge>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Cash out</Label>
+                    <Label className="text-caption">Cash out</Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">{currencySymbol}</span>
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-medium text-muted-foreground">{currencySymbol}</span>
                       <Input
                         type="number"
                         inputMode="decimal"
                         placeholder="Cash out amount"
                         value={cashOutValues[p.id] || ""}
                         onChange={(e) => setCashOutValues((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                        className="pl-8 text-lg font-semibold"
+                        className="pl-8 font-medium"
                       />
                     </div>
                     {cashOutValues[p.id] !== "" && (
-                      <p className={`text-right text-xs font-semibold ${val - parseFloat(p.total_buy_in) > 0 ? "text-emerald-600" : val - parseFloat(p.total_buy_in) < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                      <p className={`text-right text-sm font-medium ${profitLossClass(val - parseFloat(p.total_buy_in))}`}>
                         Net: {val - parseFloat(p.total_buy_in) > 0 ? "+" : ""}{formatMoney(val - parseFloat(p.total_buy_in), currency)}
                       </p>
                     )}
@@ -307,22 +308,23 @@ export default function SessionPage() {
         <StickyActionBar>
           {!isCashingOut ? (
             <div className="flex gap-2">
-              <Button variant="outline" className="h-12 shrink-0" onClick={handleDeleteSession} aria-label="Delete session">
+              <Button variant="outline" size="icon" onClick={handleDeleteSession} aria-label="Delete session">
                 <Trash2 className="size-4" />
               </Button>
-              <Button size="lg" className="h-12 flex-1 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleStartCashOut}>
+              <Button size="lg" className="flex-1" variant="destructive" onClick={handleStartCashOut}>
                 <ShieldCheck className="mr-2 size-4" />
                 Cash Out
               </Button>
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button variant="outline" className="h-12 flex-1 rounded-xl" onClick={() => setIsCashingOut(false)}>
+              <Button variant="outline" className="flex-1" onClick={() => setIsCashingOut(false)}>
                 Back to buy-ins
               </Button>
               <Button
                 size="lg"
-                className={`h-12 flex-1 rounded-xl ${!isBalanced ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}`}
+                className="flex-1"
+                variant={!isBalanced ? "destructive" : "default"}
                 onClick={handleCompleteClick}
                 disabled={completeSession.isPending}
               >

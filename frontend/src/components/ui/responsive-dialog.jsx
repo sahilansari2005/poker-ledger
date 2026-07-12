@@ -60,7 +60,7 @@ function ResponsiveDialogContent({
         <Drawer.Content
           data-slot="responsive-dialog-content"
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 flex max-h-[min(90dvh,100dvh)] flex-col rounded-t-2xl border border-border/50 bg-popover text-popover-foreground shadow-xl outline-none",
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[min(90dvh,100dvh)] flex-col rounded-t-xl border border-border/60 bg-popover text-popover-foreground shadow-xl outline-none",
             className
           )}
           {...props}
@@ -141,7 +141,7 @@ function ResponsiveDialogTitle({ className, ...props }) {
     return (
       <Drawer.Title
         data-slot="responsive-dialog-title"
-        className={cn("text-xl leading-tight font-semibold", className)}
+        className={cn("text-2xl leading-tight font-semibold", className)}
         {...props}
       />
     )

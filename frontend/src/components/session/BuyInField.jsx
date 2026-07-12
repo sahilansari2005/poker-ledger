@@ -19,13 +19,13 @@ export default function BuyInField({
 
   return (
     <div className={compact ? "space-y-2 border-t border-border/30 pt-3" : "space-y-2"}>
-      <Label className="block text-xs text-muted-foreground">
+      <Label className="text-caption">
         {compact ? "Add rebuy" : "Add buy-in"}{" "}
         <span className="text-muted-foreground/70">(adds to current total)</span>
       </Label>
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-medium text-muted-foreground">
             {currencySymbol}
           </span>
           <Input

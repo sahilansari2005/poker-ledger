@@ -50,6 +50,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/_allauth/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
+        globIgnores: ['**/landing-*.png'],
       },
       devOptions: {
         enabled: false,
