@@ -5,7 +5,7 @@ describe("tableExport", () => {
   it("builds ingest-compatible payload and skips incomplete sessions", () => {
     const table = {
       name: "Friday Night",
-      default_buy_in: "20.00",
+      default_buy_in: "0",
       currency: "GBP",
       members: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }],
       transfers: [
@@ -32,7 +32,7 @@ describe("tableExport", () => {
       tables: [
         {
           name: "Friday Night",
-          default_buy_in: "20.00",
+          default_buy_in: "0",
           currency: "GBP",
           member_names: ["Alice", "Bob"],
           transfers: [

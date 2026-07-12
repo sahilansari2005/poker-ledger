@@ -47,7 +47,7 @@ class TableSerializer(serializers.ModelSerializer):
         model = Table
         # share_token must never appear here — members would see the invite link.
         fields = ("id", "owner_id", "name", "default_buy_in", "currency", "role", "members", "transfers", "member_names", "created_at")
-        read_only_fields = ("id", "owner_id", "created_at")
+        read_only_fields = ("id", "owner_id", "default_buy_in", "created_at")
 
     def get_role(self, obj):
         request = self.context.get("request")
@@ -71,7 +71,6 @@ class TableSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         member_names = validated_data.pop("member_names", None)
         instance.name = validated_data.get("name", instance.name)
-        instance.default_buy_in = validated_data.get("default_buy_in", instance.default_buy_in)
         if "currency" in validated_data:
             instance.currency = validated_data["currency"]
         instance.save()
@@ -121,13 +120,8 @@ class SessionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         player_names = validated_data.pop("player_names", [])
         session = Session.objects.create(**validated_data)
-        default_buy_in = session.table.default_buy_in
         for name in player_names:
-            SessionPlayer.objects.create(
-                session=session,
-                name=name,
-                total_buy_in=default_buy_in,
-            )
+            SessionPlayer.objects.create(session=session, name=name)
         return session
 
 

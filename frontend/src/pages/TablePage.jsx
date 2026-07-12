@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { formatMoney, getCurrencySymbol } from "@/lib/currency"
+import { formatMoney } from "@/lib/currency"
 import { todayIsoDate } from "@/lib/formatDate"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
@@ -67,7 +67,6 @@ export default function TablePage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState("general")
   const [editName, setEditName] = useState("")
-  const [editBuyIn, setEditBuyIn] = useState("")
   const [editMembersStr, setEditMembersStr] = useState("")
   const [editCurrency, setEditCurrency] = useState("GBP")
   const [settingsError, setSettingsError] = useState("")
@@ -134,7 +133,6 @@ export default function TablePage() {
 
   const openSettings = () => {
     setEditName(table.name)
-    setEditBuyIn(String(table.default_buy_in))
     setEditMembersStr(members.map(m => m.name).join(", "))
     setEditCurrency(table.currency || "GBP")
     setSettingsError("")
@@ -148,7 +146,6 @@ export default function TablePage() {
     updateTable.mutate(
       {
         name: editName,
-        buyIn: parseFloat(editBuyIn) || 0,
         memberNames: editMembersStr.split(",").map(s => s.trim()).filter(Boolean),
         currency: editCurrency,
       },
@@ -194,7 +191,7 @@ export default function TablePage() {
       <PageHeader
         backTo="/tables"
         title={table.name}
-        subtitle={`${members.length} players · ${formatMoney(table.default_buy_in, table.currency)} buy-in`}
+        subtitle={`${members.length} players`}
         action={
           isOwner ? (
             <Button variant="outline" size="icon" onClick={openSettings} aria-label="Table settings">
@@ -381,10 +378,6 @@ export default function TablePage() {
                 <div className="space-y-2">
                   <Label>Table Name</Label>
                   <Input value={editName} onChange={e => setEditName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Default Buy-in ({getCurrencySymbol(editCurrency)})</Label>
-                  <Input type="number" value={editBuyIn} onChange={e => setEditBuyIn(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="table-currency">Currency</Label>

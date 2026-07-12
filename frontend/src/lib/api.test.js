@@ -37,7 +37,7 @@ describe("api request helper", () => {
       json: async () => ({ id: 2, name: "Sunday Game" }),
     })
 
-    await tablesApi.create("Sunday Game", 20, ["Alice"])
+    await tablesApi.create("Sunday Game", ["Alice"])
 
     expect(fetch).toHaveBeenCalledWith("/api/tables/", {
       method: "POST",
@@ -48,7 +48,6 @@ describe("api request helper", () => {
       },
       body: JSON.stringify({
         name: "Sunday Game",
-        default_buy_in: 20,
         member_names: ["Alice"],
       }),
     })
@@ -61,7 +60,7 @@ describe("api request helper", () => {
       json: async () => ({ name: ["This field is required."] }),
     })
 
-    await expect(tablesApi.create("", 10, [])).rejects.toThrow("This field is required.")
+    await expect(tablesApi.create("", [])).rejects.toThrow("This field is required.")
   })
 })
 

@@ -28,7 +28,7 @@ export function buildTableExportPayload(table, sessions = []) {
     tables: [
       {
         name: table.name,
-        default_buy_in: String(table.default_buy_in ?? "20.00"),
+        default_buy_in: String(table.default_buy_in ?? "0"),
         currency: table.currency || "GBP",
         member_names: (table.members || []).map((member) => member.name),
         transfers,

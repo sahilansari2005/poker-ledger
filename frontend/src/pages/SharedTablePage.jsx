@@ -72,7 +72,7 @@ export default function SharedTablePage() {
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-bold">{table.name}</h1>
             <p className="text-sm text-muted-foreground">
-              {(table.members || []).length} players · {formatMoney(table.default_buy_in, table.currency)} buy-in
+              {(table.members || []).length} players
             </p>
           </div>
           {cta}

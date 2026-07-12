@@ -66,7 +66,6 @@ class TableAPITests(TestCase):
             "/api/tables/",
             {
                 "name": "Friday Night",
-                "default_buy_in": "25.00",
                 "member_names": ["Alice", "Bob"],
                 "currency": "USD",
             },
@@ -85,7 +84,7 @@ class TableAPITests(TestCase):
 
         self.client.post(
             "/api/tables/",
-            {"name": "Cached Table", "default_buy_in": "10.00", "member_names": []},
+            {"name": "Cached Table", "member_names": []},
             format="json",
         )
 
@@ -96,7 +95,7 @@ class TableAPITests(TestCase):
     def test_create_table_requires_name(self):
         response = self.client.post(
             "/api/tables/",
-            {"default_buy_in": "10.00"},
+            {},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -129,7 +128,7 @@ class SessionAPITests(TestCase):
             owner=self.user,
         )
 
-    def test_create_session_applies_table_default_buy_in(self):
+    def test_create_session_starts_players_at_zero_buy_in(self):
         response = self.client.post(
             f"/api/tables/{self.table.id}/sessions/",
             {"player_names": ["Aryan", "DJ"]},
@@ -141,7 +140,7 @@ class SessionAPITests(TestCase):
         players = SessionPlayer.objects.filter(session=session).order_by("name")
         self.assertEqual(players.count(), 2)
         for player in players:
-            self.assertEqual(player.total_buy_in, Decimal("15.00"))
+            self.assertEqual(player.total_buy_in, Decimal("0"))
 
     def test_add_buy_in_increments_player_total(self):
         session = Session.objects.create(table=self.table)
