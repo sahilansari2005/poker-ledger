@@ -10,9 +10,14 @@ export function UserPreferencesProvider({ children }) {
   const updateMe = useUpdateMe()
 
   const defaultCurrency = me?.default_currency || DEFAULT_CURRENCY
-  const chipDefaultValues = me?.chip_default_values?.length
-    ? me.chip_default_values.map(String)
-    : [...FACTORY_CHIP_VALUES]
+  const rawChipDefaults = me?.chip_default_values
+  const chipDefaultValues = useMemo(
+    () =>
+      rawChipDefaults?.length
+        ? rawChipDefaults.map(String)
+        : [...FACTORY_CHIP_VALUES],
+    [rawChipDefaults]
+  )
   const sessionSortOrder = me?.session_sort_order === "asc" ? "asc" : "desc"
 
   const savePreferences = useCallback(

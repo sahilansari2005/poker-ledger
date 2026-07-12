@@ -22,7 +22,8 @@ export default function MobileShell() {
       <div
         className={cn(
           "relative z-10 mx-auto w-full max-w-lg px-5 pt-safe ui-scroll-surface md:max-w-2xl lg:max-w-3xl",
-          hideNav ? "pb-safe" : "pb-nav"
+          // Hide-nav routes own their bottom padding (sticky bars / page safe-area).
+          hideNav ? "pb-0" : "pb-nav"
         )}
       >
         <div className="py-6 md:py-8">

@@ -30,8 +30,8 @@ function ResponsiveDialog({ children, ...props }) {
       {isMobile ? (
         <Drawer.Root
           data-slot="responsive-dialog"
-          shouldScaleBackground
-          repositionInputs={false}
+          // Scaling the background creates a transform containing block that traps position:fixed.
+          shouldScaleBackground={false}
           {...props}
         >
           {children}
@@ -60,13 +60,13 @@ function ResponsiveDialogContent({
         <Drawer.Content
           data-slot="responsive-dialog-content"
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 flex max-h-[min(90dvh,100dvh)] flex-col rounded-t-xl border border-border/60 bg-popover text-popover-foreground shadow-xl outline-none",
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[min(90dvh,100dvh)] flex-col rounded-t-xl border border-border/60 bg-popover pb-[env(safe-area-inset-bottom)] text-popover-foreground shadow-xl outline-none",
             className
           )}
           {...props}
         >
           <div className="mx-auto mt-3 mb-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25" />
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4">
             {children}
           </div>
           {showCloseButton && (
@@ -115,7 +115,7 @@ function ResponsiveDialogFooter({ className, ...props }) {
     <DialogFooter
       className={cn(
         isMobile &&
-          "mt-auto shrink-0 border-t border-border/20 bg-popover pt-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+          "mt-auto shrink-0 border-t border-border/20 bg-popover pt-4 pb-4",
         className
       )}
       {...props}

@@ -95,10 +95,10 @@ export default function LoginPage() {
     : "Create an account to start tracking sessions."
 
   return (
-    <div className="dark relative flex min-h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+    <div className="dark relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-background text-foreground">
       <AuroraBackdrop reduce={reduce} />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 px-5 py-10">
+      <div className="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 overflow-y-auto px-5 py-10">
         <motion.div
           className="space-y-3 text-center"
           initial={reduce ? false : { opacity: 0, y: 16 }}
