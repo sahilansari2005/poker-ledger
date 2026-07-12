@@ -71,8 +71,13 @@ export default function Dashboard() {
       <div ref={tablesListRef} className="grid gap-5 sm:grid-cols-2 ui-stagger">
         {tables.map((table) => (
           <Card key={table.id} className="ui-card-hover">
-            <CardHeader>
-              <CardTitle className="truncate">{table.name}</CardTitle>
+            <CardHeader className="pb-2">
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="truncate">{table.name}</CardTitle>
+                {table.role === "viewer" && (
+                  <Badge variant="outline" className="shrink-0">Viewer</Badge>
+                )}
+              </div>
               <CardDescription className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5">
                   <Users className="size-4" /> {table.members?.length || 0}

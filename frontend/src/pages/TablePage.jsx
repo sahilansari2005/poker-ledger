@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
-import { Link, useParams, useNavigate } from "react-router-dom"
-import { Play, TrendingUp, TrendingDown, Users, Settings, Trash2, ArrowDownWideNarrow, ArrowUpWideNarrow } from "lucide-react"
+import { useParams, useNavigate } from "react-router-dom"
+import { Play, Users, Settings, Trash2, ArrowDownWideNarrow, ArrowUpWideNarrow, Copy, Check, MessageSquarePlus, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -26,12 +26,20 @@ import {
   useCreateSession,
   useUpdateTable,
   useDeleteTable,
+  useShareLink,
+  useRotateShareLink,
+  useRevokeShareLink,
+  useTableMemberships,
+  useRemoveMembership,
+  useTableRequests,
+  useLeaveTable,
 } from "@/lib/queries"
 import CurrencySelect from "@/components/CurrencySelect"
-import { profitLossClass } from "@/lib/utils"
-import SessionDateEdit from "@/components/session/SessionDateEdit"
 import PageHeader from "@/components/layout/PageHeader"
-import StickyActionBar from "@/components/layout/StickyActionBar"
+import Leaderboard from "@/components/table/Leaderboard"
+import SessionsList from "@/components/table/SessionsList"
+import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
+import RequestsList from "@/components/table/RequestsList"
 
 export default function TablePage() {
   const { id } = useParams()
@@ -44,6 +52,10 @@ export default function TablePage() {
   const createSession = useCreateSession(id)
   const updateTable = useUpdateTable(id)
   const deleteTable = useDeleteTable(id)
+
+  const isOwner = table?.role !== "viewer"
+
+  const { data: requests = [] } = useTableRequests(id, { enabled: Boolean(table) })
 
   const [sessionsListRef] = useAnimatedList()
 
@@ -58,6 +70,17 @@ export default function TablePage() {
   const [editMembersStr, setEditMembersStr] = useState("")
   const [editCurrency, setEditCurrency] = useState("GBP")
   const [settingsError, setSettingsError] = useState("")
+
+  const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false)
+
+  const shareEnabled = isOwner && isSettingsOpen
+  const { data: shareLink } = useShareLink(id, { enabled: shareEnabled })
+  const rotateShareLink = useRotateShareLink(id)
+  const revokeShareLink = useRevokeShareLink(id)
+  const { data: memberships = [] } = useTableMemberships(id, { enabled: shareEnabled })
+  const removeMembership = useRemoveMembership(id)
+  const leaveTable = useLeaveTable(id)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     setSessionSort(sessionSortOrder)
@@ -78,9 +101,12 @@ export default function TablePage() {
   )
 
   const members = table.members || []
+  const openRequestCount = requests.filter((r) => r.status === "open").length
+  const shareToken = shareLink?.share_token
+  const shareUrl = shareToken ? `${window.location.origin}/shared/${shareToken}` : null
 
   const handleOpenNewSession = () => {
-    setSelectedMembers(members.map(m => m.name))
+    setSelectedMembers([])
     setSessionDate(todayIsoDate())
     setIsStartDialogOpen(true)
   }
@@ -141,29 +167,16 @@ export default function TablePage() {
     })
   }
 
-  const playerStats = members.reduce((acc, m) => {
-    acc[m.name] = { totalInvested: 0, totalProfit: 0 }
-    sessions.filter(s => s.is_completed).forEach(session => {
-      const p = session.players.find(p => p.name === m.name)
-      if (p) {
-        acc[m.name].totalInvested += parseFloat(p.total_buy_in)
-        if (p.cash_out !== null) {
-          acc[m.name].totalProfit += parseFloat(p.cash_out) - parseFloat(p.total_buy_in)
-        }
-      }
-    })
-    return acc
-  }, {})
-
-  ;(table.transfers || []).forEach((transfer) => {
-    const amount = parseFloat(transfer.amount)
-    if (playerStats[transfer.from_player]) {
-      playerStats[transfer.from_player].totalProfit -= amount
+  const handleCopyShareUrl = async () => {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard unavailable; the URL is visible for manual copying.
     }
-    if (playerStats[transfer.to_player]) {
-      playerStats[transfer.to_player].totalProfit += amount
-    }
-  })
+  }
 
   const toggleSessionSort = () => {
     const next = sessionSort === "desc" ? "asc" : "desc"
@@ -171,60 +184,37 @@ export default function TablePage() {
     savePreferences({ session_sort_order: next })
   }
 
-  const sortedMembers = [...members].sort(
-    (a, b) => (playerStats[b.name]?.totalProfit || 0) - (playerStats[a.name]?.totalProfit || 0)
-  )
-
   return (
-    <div className="page-stack pb-flow">
+    <div className="space-y-6 pb-10">
       <PageHeader
         backTo="/tables"
         title={table.name}
         subtitle={`${members.length} players · ${formatMoney(table.default_buy_in, table.currency)} buy-in`}
         action={
-          <Button variant="outline" size="icon" onClick={openSettings} aria-label="Table settings">
-            <Settings className="size-4" />
-          </Button>
+          isOwner ? (
+            <Button variant="outline" size="icon" onClick={openSettings} aria-label="Table settings">
+              <Settings className="size-4" />
+            </Button>
+          ) : (
+            <Badge variant="outline">Viewer</Badge>
+          )
         }
       />
 
-      <div className="space-y-10">
-        <section className="section-stack">
-          <div className="flex items-center justify-between">
-            <h2 className="text-section">Leaderboard</h2>
-            <Badge variant="outline" className="text-xs">All-time</Badge>
-          </div>
-          <Card>
-            <CardContent className="divide-y divide-border/40 p-0">
-              {sortedMembers.map((member) => {
-                const stats = playerStats[member.name]
-                const isPositive = stats.totalProfit > 0
-                const isNegative = stats.totalProfit < 0
-                return (
-                  <div key={member.id} className="flex items-center justify-between gap-4 p-5">
-                    <div className="flex min-w-0 items-center gap-4">
-                      <div className="icon-well text-sm font-semibold">
-                        {member.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{member.name}</p>
-                        <p className="text-caption">{formatMoney(stats.totalInvested, table.currency)} invested</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className={`shrink-0 tabular-nums ${profitLossClass(stats.totalProfit)}`}>
-                      {isPositive && <TrendingUp className="mr-1 size-3.5" />}
-                      {isNegative && <TrendingDown className="mr-1 size-3.5" />}
-                      {isPositive ? "+" : ""}{formatMoney(stats.totalProfit, table.currency)}
-                    </Badge>
-                  </div>
-                )
-              })}
-              {sortedMembers.length === 0 && (
-                <p className="p-6 text-center text-sm text-muted-foreground">No players yet. Edit the table to add members.</p>
-              )}
-            </CardContent>
-          </Card>
-        </section>
+      {isOwner && (
+        <Button size="lg" className="h-12 w-full rounded-xl" onClick={handleOpenNewSession}>
+          <Play className="mr-2 size-4 fill-current" />
+          Start Session
+        </Button>
+      )}
+
+      <div className="space-y-8">
+        <Leaderboard
+          members={members}
+          sessions={sessions}
+          transfers={table.transfers || []}
+          currency={table.currency}
+        />
 
         {(table.transfers || []).length > 0 && (
           <section className="section-stack">
@@ -270,45 +260,61 @@ export default function TablePage() {
               <Badge variant="secondary">{sessions.length}</Badge>
             </div>
           </div>
-          <div ref={sessionsListRef} className="space-y-4">
-            {sessions.map((session) => (
-              <Link
-                key={session.id}
-                to={session.is_completed ? `/summary/${session.id}` : `/session/${session.id}`}
-                className="block"
+          <SessionsList
+            sessions={sessions}
+            tableId={id}
+            readOnly={!isOwner}
+            listRef={sessionsListRef}
+            showEmpty={!sessionsLoading}
+            emptyMessage={isOwner ? "No sessions yet. Start one above." : "No sessions yet."}
+          />
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold">Requests</h2>
+              {openRequestCount > 0 && <Badge>{openRequestCount} open</Badge>}
+            </div>
+            {!isOwner && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 rounded-lg text-xs"
+                onClick={() => setIsRequestDialogOpen(true)}
               >
-                <Card className="ui-card-hover touch-manipulation">
-                  <CardHeader className="flex flex-row items-center justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium">
-                        <SessionDateEdit sessionId={session.id} tableId={id} date={session.date} />
-                      </div>
-                      <CardDescription className="mt-1">
-                        {session.players?.length || 0} players
-                      </CardDescription>
-                    </div>
-                    <Badge variant={!session.is_completed ? "default" : "secondary"}>
-                      {!session.is_completed ? "Active" : "Done"}
-                    </Badge>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-            {!sessionsLoading && sessions.length === 0 && (
-              <div className="rounded-xl border border-dashed border-border/60 py-12 text-center text-caption">
-                No sessions yet. Start one below.
-              </div>
+                <MessageSquarePlus className="size-3.5" />
+                Raise a request
+              </Button>
             )}
           </div>
+          <RequestsList requests={requests} tableId={id} canResolve={isOwner} />
         </section>
+
+        {!isOwner && (
+          <Button
+            variant="outline"
+            className="h-11 w-full rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
+            disabled={leaveTable.isPending}
+            onClick={() => {
+              if (!window.confirm("Leave this table? You will lose viewer access until you join again via the share link.")) return
+              leaveTable.mutate(undefined, {
+                onSuccess: () => navigate("/", { replace: true }),
+              })
+            }}
+          >
+            <LogOut className="mr-2 size-4" />
+            {leaveTable.isPending ? "Leaving…" : "Leave table"}
+          </Button>
+        )}
       </div>
 
-      <StickyActionBar>
-        <Button size="lg" className="w-full" onClick={handleOpenNewSession}>
-          <Play className="mr-2 size-4 fill-current" />
-          Start Session
-        </Button>
-      </StickyActionBar>
+      <RaiseRequestDialog
+        tableId={id}
+        sessions={sessions}
+        open={isRequestDialogOpen}
+        onOpenChange={setIsRequestDialogOpen}
+      />
 
       <ResponsiveDialog open={isStartDialogOpen} onOpenChange={setIsStartDialogOpen}>
         <ResponsiveDialogContent className="sm:max-w-lg">
@@ -361,6 +367,7 @@ export default function TablePage() {
           <Tabs value={settingsTab} onValueChange={setSettingsTab} className="flex min-h-0 flex-1 flex-col">
             <TabsList className="w-full shrink-0">
               <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
+              <TabsTrigger value="sharing" className="flex-1">Sharing</TabsTrigger>
               <TabsTrigger value="danger" className="flex-1 text-destructive">Danger</TabsTrigger>
             </TabsList>
 
@@ -387,6 +394,82 @@ export default function TablePage() {
                   <Input value={editMembersStr} onChange={e => setEditMembersStr(e.target.value)} placeholder="John, Jane, Daniel" />
                 </div>
                 {settingsError && <p className="text-sm text-destructive">{settingsError}</p>}
+              </TabsContent>
+
+              <TabsContent value="sharing" className="space-y-5 pt-4">
+                <div className="space-y-2">
+                  <Label>Share link</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Anyone with this link can view the ledger. Logged-in users can join as view-only members.
+                  </p>
+                  {shareUrl ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input readOnly value={shareUrl} className="h-11 bg-background/50 text-xs" onFocus={(e) => e.target.select()} />
+                        <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleCopyShareUrl} aria-label="Copy share link">
+                          {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rotateShareLink.mutate()}
+                          disabled={rotateShareLink.isPending}
+                        >
+                          Regenerate link
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => revokeShareLink.mutate()}
+                          disabled={revokeShareLink.isPending}
+                        >
+                          Disable sharing
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Regenerating invalidates the old link. Existing members keep their access.
+                      </p>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => rotateShareLink.mutate()}
+                      disabled={rotateShareLink.isPending}
+                      className="w-full"
+                    >
+                      {rotateShareLink.isPending ? "Generating…" : "Generate share link"}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="space-y-2 border-t border-border/20 pt-4">
+                  <Label>Members with access</Label>
+                  {memberships.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No one has joined via the link yet.</p>
+                  ) : (
+                    <div className="divide-y divide-border/30 rounded-xl border border-border/40">
+                      {memberships.map((membership) => (
+                        <div key={membership.id} className="flex items-center justify-between gap-2 p-3 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{membership.user_email}</p>
+                            <p className="text-xs capitalize text-muted-foreground">{membership.role}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 text-destructive"
+                            onClick={() => removeMembership.mutate(membership.id)}
+                            disabled={removeMembership.isPending}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="danger" className="pt-4">

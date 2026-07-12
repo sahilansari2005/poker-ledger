@@ -7,7 +7,16 @@ from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from ledger.models import Table, Session, SessionPlayer, SessionSettlement, SessionAuditEntry, LedgerUser, TableTransfer
+from ledger.models import (
+    Table,
+    TableMembership,
+    Session,
+    SessionPlayer,
+    SessionSettlement,
+    SessionAuditEntry,
+    LedgerUser,
+    TableTransfer,
+)
 from ledger.settlement import compute_settlements
 
 
@@ -237,8 +246,72 @@ class SessionAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.json()), 1)
 
+    def test_adjust_completed_session_updates_amounts_and_settlements(self):
+        session = Session.objects.create(table=self.table, is_completed=True)
+        winner = SessionPlayer.objects.create(
+            session=session, name="DJ", total_buy_in="20.00", cash_out="35.00"
+        )
+        loser = SessionPlayer.objects.create(
+            session=session, name="Fayyad", total_buy_in="20.00", cash_out="5.00"
+        )
+        SessionSettlement.objects.create(
+            session=session, from_player="Fayyad", to_player="DJ", amount="15.00", order=0
+        )
 
-class SettlementTests(TestCase):
+        response = self.client.post(
+            f"/api/sessions/{session.id}/adjust/",
+            {
+                "players": [
+                    {"player_id": winner.id, "total_buy_in": "25.00", "cash_out": "40.00"},
+                    {"player_id": loser.id, "total_buy_in": "25.00", "cash_out": "10.00"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        by_name = {p["name"]: p for p in payload["players"]}
+        self.assertEqual(by_name["DJ"]["total_buy_in"], "25.00")
+        self.assertEqual(by_name["DJ"]["cash_out"], "40.00")
+        self.assertEqual(by_name["Fayyad"]["total_buy_in"], "25.00")
+        self.assertEqual(by_name["Fayyad"]["cash_out"], "10.00")
+        self.assertEqual(len(payload["settlements"]), 1)
+        self.assertEqual(payload["settlements"][0]["amount"], "15.00")
+        self.assertTrue(
+            SessionAuditEntry.objects.filter(session=session, action="amounts_adjusted").exists()
+        )
+
+    def test_adjust_rejects_imbalance_without_flag(self):
+        session = Session.objects.create(table=self.table, is_completed=True)
+        p1 = SessionPlayer.objects.create(session=session, name="A", total_buy_in="20.00", cash_out="20.00")
+        p2 = SessionPlayer.objects.create(session=session, name="B", total_buy_in="20.00", cash_out="20.00")
+
+        response = self.client.post(
+            f"/api/sessions/{session.id}/adjust/",
+            {
+                "players": [
+                    {"player_id": p1.id, "total_buy_in": "20.00", "cash_out": "30.00"},
+                    {"player_id": p2.id, "total_buy_in": "20.00", "cash_out": "5.00"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_adjust_requires_completed_session(self):
+        session = Session.objects.create(table=self.table, is_completed=False)
+        player = SessionPlayer.objects.create(session=session, name="A", total_buy_in="20.00")
+
+        response = self.client.post(
+            f"/api/sessions/{session.id}/adjust/",
+            {
+                "players": [
+                    {"player_id": player.id, "total_buy_in": "25.00", "cash_out": "25.00"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     def test_compute_settlements_minimizes_transfers(self):
         class Player:
             def __init__(self, name, total_buy_in, cash_out):
@@ -572,3 +645,365 @@ class FrontendAssetTests(TestCase):
     def test_api_tables_requires_auth(self):
         response = self.client.get("/api/tables/")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+@override_settings(
+    ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"],
+    DEBUG=True,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "ledger-tests",
+        }
+    },
+)
+class ShareLinkTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.owner_client, self.owner = auth_client("share_owner")
+        self.other_client, self.other = auth_client("share_other")
+        self.table = Table.objects.create(name="Shared Table", default_buy_in="10.00", owner=self.owner)
+        self.session = Session.objects.create(table=self.table)
+        SessionPlayer.objects.create(session=self.session, name="P1", total_buy_in="10.00")
+
+    def _enable_sharing(self):
+        response = self.owner_client.post(f"/api/tables/{self.table.id}/share-link/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        return response.json()["share_token"]
+
+    def test_share_link_disabled_by_default(self):
+        response = self.owner_client.get(f"/api/tables/{self.table.id}/share-link/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.json()["share_token"])
+
+    def test_owner_can_generate_share_link(self):
+        token = self._enable_sharing()
+        self.assertGreaterEqual(len(token), 40)
+
+    def test_non_owner_cannot_manage_share_link(self):
+        response = self.other_client.post(f"/api/tables/{self.table.id}/share-link/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_member_cannot_manage_share_link(self):
+        token = self._enable_sharing()
+        self.other_client.post(f"/api/shared/{token}/join/")
+        response = self.other_client.post(f"/api/tables/{self.table.id}/share-link/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_anonymous_can_view_shared_table(self):
+        token = self._enable_sharing()
+        response = APIClient().get(f"/api/shared/{token}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["table"]["name"], "Shared Table")
+        self.assertNotIn("owner_id", payload["table"])
+        self.assertNotIn("share_token", payload["table"])
+        self.assertEqual(len(payload["sessions"]), 1)
+        self.assertFalse(payload["sessions"][0]["can_edit"])
+        self.assertEqual(
+            payload["viewer"],
+            {"is_authenticated": False, "is_owner": False, "is_member": False},
+        )
+
+    def test_bad_token_404(self):
+        self._enable_sharing()
+        response = APIClient().get("/api/shared/not-a-real-token-aaaaaaaaaaaaaaaa/")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_rotate_invalidates_old_token(self):
+        old_token = self._enable_sharing()
+        new_token = self._enable_sharing()
+        self.assertNotEqual(old_token, new_token)
+        self.assertEqual(APIClient().get(f"/api/shared/{old_token}/").status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(APIClient().get(f"/api/shared/{new_token}/").status_code, status.HTTP_200_OK)
+
+    def test_revoke_disables_link(self):
+        token = self._enable_sharing()
+        response = self.owner_client.delete(f"/api/tables/{self.table.id}/share-link/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(APIClient().get(f"/api/shared/{token}/").status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_viewer_flags_for_logged_in_non_member(self):
+        token = self._enable_sharing()
+        response = self.other_client.get(f"/api/shared/{token}/")
+        self.assertEqual(
+            response.json()["viewer"],
+            {"is_authenticated": True, "is_owner": False, "is_member": False},
+        )
+
+    def test_viewer_flags_for_owner(self):
+        token = self._enable_sharing()
+        response = self.owner_client.get(f"/api/shared/{token}/")
+        self.assertEqual(
+            response.json()["viewer"],
+            {"is_authenticated": True, "is_owner": True, "is_member": False},
+        )
+
+
+@override_settings(
+    ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"],
+    DEBUG=True,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "ledger-tests",
+        }
+    },
+)
+class MembershipTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.owner_client, self.owner = auth_client("mem_owner")
+        self.member_client, self.member = auth_client("mem_viewer")
+        self.table = Table.objects.create(name="Join Me", default_buy_in="10.00", owner=self.owner)
+        self.session = Session.objects.create(table=self.table)
+        self.player = SessionPlayer.objects.create(session=self.session, name="P1", total_buy_in="10.00")
+        self.token = self.owner_client.post(f"/api/tables/{self.table.id}/share-link/").json()["share_token"]
+
+    def _join(self, client=None):
+        return (client or self.member_client).post(f"/api/shared/{self.token}/join/")
+
+    def test_join_creates_viewer_membership(self):
+        response = self._join()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.json(), {"table_id": self.table.id, "role": "viewer"})
+        self.assertTrue(TableMembership.objects.filter(table=self.table, user=self.member).exists())
+
+    def test_join_is_idempotent(self):
+        self._join()
+        response = self._join()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(TableMembership.objects.filter(table=self.table, user=self.member).count(), 1)
+
+    def test_owner_join_is_noop(self):
+        response = self._join(self.owner_client)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["role"], "owner")
+        self.assertFalse(TableMembership.objects.filter(table=self.table, user=self.owner).exists())
+
+    def test_anonymous_cannot_join(self):
+        response = APIClient().post(f"/api/shared/{self.token}/join/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_member_sees_table_in_list_with_viewer_role(self):
+        self._join()
+        response = self.member_client.get("/api/tables/")
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["id"], self.table.id)
+        self.assertEqual(payload[0]["role"], "viewer")
+
+    def test_owner_sees_owner_role(self):
+        response = self.owner_client.get("/api/tables/")
+        self.assertEqual(response.json()[0]["role"], "owner")
+
+    def test_member_can_read_table_sessions_and_audit_log(self):
+        self._join()
+        self.assertEqual(self.member_client.get(f"/api/tables/{self.table.id}/").status_code, 200)
+        self.assertEqual(self.member_client.get(f"/api/tables/{self.table.id}/sessions/").status_code, 200)
+        session_response = self.member_client.get(f"/api/sessions/{self.session.id}/")
+        self.assertEqual(session_response.status_code, 200)
+        self.assertFalse(session_response.json()["can_edit"])
+        self.assertEqual(self.member_client.get(f"/api/sessions/{self.session.id}/audit-log/").status_code, 200)
+
+    def test_owner_session_detail_has_can_edit(self):
+        response = self.owner_client.get(f"/api/sessions/{self.session.id}/")
+        self.assertTrue(response.json()["can_edit"])
+
+    def test_member_cannot_mutate_table(self):
+        self._join()
+        self.assertEqual(
+            self.member_client.patch(f"/api/tables/{self.table.id}/", {"name": "Hax"}, format="json").status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+        self.assertEqual(
+            self.member_client.delete(f"/api/tables/{self.table.id}/").status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_member_cannot_create_session(self):
+        self._join()
+        response = self.member_client.post(
+            f"/api/tables/{self.table.id}/sessions/",
+            {"player_names": ["A", "B"]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_member_cannot_mutate_session(self):
+        self._join()
+        endpoints = [
+            ("patch", f"/api/sessions/{self.session.id}/", {"date": "2000-01-01"}),
+            ("delete", f"/api/sessions/{self.session.id}/", None),
+            ("post", f"/api/sessions/{self.session.id}/buy-in/", {"player_id": self.player.id, "amount": "5.00"}),
+            ("post", f"/api/sessions/{self.session.id}/add-player/", {"name": "Eve"}),
+            ("post", f"/api/sessions/{self.session.id}/complete/", {"cash_outs": []}),
+            ("post", f"/api/sessions/{self.session.id}/adjust/", {
+                "players": [{"player_id": self.player.id, "total_buy_in": "10.00", "cash_out": "10.00"}],
+            }),
+        ]
+        for method, url, data in endpoints:
+            response = getattr(self.member_client, method)(url, data, format="json")
+            self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND, f"{method} {url}")
+
+    def test_owner_lists_memberships(self):
+        self._join()
+        response = self.owner_client.get(f"/api/tables/{self.table.id}/memberships/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["user_id"], self.member.pk)
+        self.assertEqual(payload[0]["role"], "viewer")
+
+    def test_member_cannot_list_memberships(self):
+        self._join()
+        response = self.member_client.get(f"/api/tables/{self.table.id}/memberships/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_owner_removes_member(self):
+        self._join()
+        membership = TableMembership.objects.get(table=self.table, user=self.member)
+        response = self.owner_client.delete(f"/api/tables/{self.table.id}/memberships/{membership.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(
+            self.member_client.get(f"/api/tables/{self.table.id}/").status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    def test_member_can_leave(self):
+        self._join()
+        response = self.member_client.post(f"/api/tables/{self.table.id}/leave/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(TableMembership.objects.filter(table=self.table, user=self.member).exists())
+
+    def test_cache_fanout_member_sees_owner_rename(self):
+        self._join()
+        # Prime the member's cache
+        first = self.member_client.get(f"/api/tables/{self.table.id}/")
+        self.assertEqual(first.json()["name"], "Join Me")
+        # Owner renames; fanout must invalidate the member's cached copy too
+        self.owner_client.patch(f"/api/tables/{self.table.id}/", {"name": "Renamed"}, format="json")
+        second = self.member_client.get(f"/api/tables/{self.table.id}/")
+        self.assertEqual(second.json()["name"], "Renamed")
+
+
+@override_settings(
+    ALLOWED_HOSTS=["testserver", "127.0.0.1", "localhost"],
+    DEBUG=True,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "ledger-tests",
+        }
+    },
+)
+class ChangeRequestTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.owner_client, self.owner = auth_client("req_owner")
+        self.member_client, self.member = auth_client("req_member")
+        self.outsider_client, self.outsider = auth_client("req_outsider")
+        self.table = Table.objects.create(name="Disputed", default_buy_in="10.00", owner=self.owner)
+        self.session = Session.objects.create(table=self.table)
+        self.other_table = Table.objects.create(name="Other", default_buy_in="10.00", owner=self.outsider)
+        self.other_session = Session.objects.create(table=self.other_table)
+        token = self.owner_client.post(f"/api/tables/{self.table.id}/share-link/").json()["share_token"]
+        self.member_client.post(f"/api/shared/{token}/join/")
+
+    def _raise_request(self, client=None, **overrides):
+        data = {"message": "Buy-in looks wrong", "session": self.session.id}
+        data.update(overrides)
+        return (client or self.member_client).post(
+            f"/api/tables/{self.table.id}/requests/", data, format="json"
+        )
+
+    def test_member_can_raise_session_request(self):
+        response = self._raise_request()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        payload = response.json()
+        self.assertEqual(payload["status"], "open")
+        self.assertEqual(payload["requester_id"], self.member.pk)
+        self.assertEqual(payload["session"], self.session.id)
+        self.assertTrue(
+            SessionAuditEntry.objects.filter(session=self.session, action="change_request_raised").exists()
+        )
+
+    def test_member_can_raise_table_level_request(self):
+        response = self._raise_request(session=None)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(response.json()["session"])
+
+    def test_request_with_foreign_session_rejected(self):
+        response = self._raise_request(session=self.other_session.id)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_blank_message_rejected(self):
+        response = self._raise_request(message="   ")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_non_member_cannot_raise_request(self):
+        response = self._raise_request(client=self.outsider_client)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_anonymous_cannot_raise_request(self):
+        response = APIClient().post(
+            f"/api/tables/{self.table.id}/requests/",
+            {"message": "hi"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_owner_lists_all_requests_member_lists_own(self):
+        self._raise_request()
+        self._raise_request(client=self.owner_client, message="Owner note to self")
+
+        owner_list = self.owner_client.get(f"/api/tables/{self.table.id}/requests/").json()
+        self.assertEqual(len(owner_list), 2)
+
+        member_list = self.member_client.get(f"/api/tables/{self.table.id}/requests/").json()
+        self.assertEqual(len(member_list), 1)
+        self.assertEqual(member_list[0]["requester_id"], self.member.pk)
+
+    def test_status_filter(self):
+        self._raise_request()
+        response = self.owner_client.get(f"/api/tables/{self.table.id}/requests/?status=resolved")
+        self.assertEqual(response.json(), [])
+
+    def test_owner_resolves_request(self):
+        request_id = self._raise_request().json()["id"]
+        response = self.owner_client.post(
+            f"/api/tables/{self.table.id}/requests/{request_id}/resolve/",
+            {"status": "resolved", "resolution_note": "Fixed the buy-in."},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["status"], "resolved")
+        self.assertEqual(payload["resolution_note"], "Fixed the buy-in.")
+        self.assertIsNotNone(payload["resolved_at"])
+        self.assertTrue(
+            SessionAuditEntry.objects.filter(session=self.session, action="change_request_resolved").exists()
+        )
+
+    def test_member_cannot_resolve_request(self):
+        request_id = self._raise_request().json()["id"]
+        response = self.member_client.post(
+            f"/api/tables/{self.table.id}/requests/{request_id}/resolve/",
+            {"status": "resolved"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_cannot_resolve_non_open_request(self):
+        request_id = self._raise_request().json()["id"]
+        self.owner_client.post(
+            f"/api/tables/{self.table.id}/requests/{request_id}/resolve/",
+            {"status": "rejected"},
+            format="json",
+        )
+        response = self.owner_client.post(
+            f"/api/tables/{self.table.id}/requests/{request_id}/resolve/",
+            {"status": "resolved"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

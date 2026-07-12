@@ -2,9 +2,11 @@ from decimal import Decimal
 
 from rest_framework import serializers
 from .models import (
+    ChangeRequest,
     LedgerUser,
     Table,
     TableMember,
+    TableMembership,
     TableTransfer,
     Session,
     SessionPlayer,
@@ -33,6 +35,7 @@ class TableTransferSerializer(serializers.ModelSerializer):
 class TableSerializer(serializers.ModelSerializer):
     members = TableMemberSerializer(many=True, read_only=True)
     transfers = TableTransferSerializer(many=True, read_only=True)
+    role = serializers.SerializerMethodField()
     member_names = serializers.ListField(
         child=serializers.CharField(max_length=100),
         write_only=True,
@@ -42,8 +45,15 @@ class TableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Table
-        fields = ("id", "owner_id", "name", "default_buy_in", "currency", "members", "transfers", "member_names", "created_at")
+        # share_token must never appear here — members would see the invite link.
+        fields = ("id", "owner_id", "name", "default_buy_in", "currency", "role", "members", "transfers", "member_names", "created_at")
         read_only_fields = ("id", "owner_id", "created_at")
+
+    def get_role(self, obj):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return None
+        return "owner" if obj.owner_id == request.user.pk else "viewer"
 
     def validate_currency(self, value):
         code = (value or "GBP").upper()
@@ -123,9 +133,77 @@ class SessionSerializer(serializers.ModelSerializer):
 
 class SessionDetailSerializer(SessionSerializer):
     settlements = SessionSettlementSerializer(many=True, read_only=True)
+    can_edit = serializers.SerializerMethodField()
 
     class Meta(SessionSerializer.Meta):
-        fields = SessionSerializer.Meta.fields + ("settlements",)
+        fields = SessionSerializer.Meta.fields + ("settlements", "can_edit")
+
+    def get_can_edit(self, obj):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return False
+        return obj.table.owner_id == request.user.pk
+
+
+class SharedTableSerializer(serializers.ModelSerializer):
+    """Public read-only shape served to anyone holding the share link."""
+
+    members = TableMemberSerializer(many=True, read_only=True)
+    transfers = TableTransferSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Table
+        # Deliberately omits owner_id and share_token.
+        fields = ("id", "name", "default_buy_in", "currency", "members", "transfers", "created_at")
+        read_only_fields = fields
+
+
+class TableMembershipSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = TableMembership
+        fields = ("id", "user_id", "user_email", "role", "created_at")
+        read_only_fields = fields
+
+
+class ChangeRequestSerializer(serializers.ModelSerializer):
+    requester_email = serializers.EmailField(source="requester.email", read_only=True)
+    session = serializers.PrimaryKeyRelatedField(
+        queryset=Session.objects.all(), required=False, allow_null=True
+    )
+
+    class Meta:
+        model = ChangeRequest
+        fields = (
+            "id",
+            "table",
+            "session",
+            "requester_id",
+            "requester_email",
+            "message",
+            "status",
+            "resolution_note",
+            "created_at",
+            "resolved_at",
+        )
+        read_only_fields = ("id", "table", "requester_id", "status", "resolution_note", "created_at", "resolved_at")
+
+    def validate_session(self, value):
+        table = self.context.get("table")
+        if value is not None and table is not None and value.table_id != table.id:
+            raise serializers.ValidationError("Session does not belong to this table.")
+        return value
+
+    def validate_message(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Message cannot be empty.")
+        return value.strip()
+
+
+class ResolveRequestSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=[ChangeRequest.STATUS_RESOLVED, ChangeRequest.STATUS_REJECTED])
+    resolution_note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class AddBuyInSerializer(serializers.Serializer):
@@ -144,6 +222,17 @@ class CashOutPlayerSerializer(serializers.Serializer):
 
 class CompleteSessionSerializer(serializers.Serializer):
     cash_outs = CashOutPlayerSerializer(many=True)
+    allow_discrepancy = serializers.BooleanField(required=False, default=False)
+
+
+class AdjustPlayerSerializer(serializers.Serializer):
+    player_id = serializers.IntegerField()
+    total_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+    cash_out = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+
+
+class AdjustSessionSerializer(serializers.Serializer):
+    players = AdjustPlayerSerializer(many=True, min_length=1)
     allow_discrepancy = serializers.BooleanField(required=False, default=False)
 
 

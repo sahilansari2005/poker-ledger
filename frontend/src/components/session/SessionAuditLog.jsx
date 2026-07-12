@@ -11,6 +11,7 @@ const ACTION_LABELS = {
   player_added: "Player joined",
   session_completed: "Completed",
   session_completed_with_discrepancy: "Completed with discrepancy",
+  amounts_adjusted: "Amounts adjusted",
 }
 
 function actionVariant(action) {
