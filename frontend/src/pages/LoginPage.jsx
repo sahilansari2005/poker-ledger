@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
+import { motion, useReducedMotion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import AuroraBackdrop from "@/components/reactbits/AuroraBackdrop"
+import ShinyText from "@/components/reactbits/ShinyText"
+import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import { getConfig, getSession, isAuthenticatedSession, login, parseAllauthErrors, signup } from "@/lib/allauth"
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const reduce = useReducedMotion()
   // Post-auth destination (e.g. back to a /shared/<token> page). Only allow
   // in-app paths to avoid open redirects. Default to tables on the revamp routes.
   const rawNext = new URLSearchParams(location.search).get("next")
@@ -80,82 +84,121 @@ export default function LoginPage() {
     setConfirmPassword("")
   }
 
+  const isLogin = mode === "login"
+  const eyebrow = isLogin ? "Welcome back" : "Join the table"
+  const description = isLogin
+    ? "Sign in to access your tables and preferences."
+    : "Create an account to start tracking sessions."
+
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background p-5">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-title">Poker Ledger</CardTitle>
-          <CardDescription>
-            {mode === "login"
-              ? "Sign in to access your tables and preferences."
-              : "Create an account to start tracking sessions."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-center text-caption">Loading…</p>
-          ) : (
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </div>
-              {mode === "signup" && (
+    <div className="dark relative flex min-h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+      <AuroraBackdrop reduce={reduce} />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 px-5 py-10">
+        <motion.div
+          className="space-y-3 text-center"
+          initial={reduce ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <Link
+            to="/"
+            className="inline-block text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
+          >
+            <span className="text-primary">♠</span> Poker Ledger
+          </Link>
+
+          <div className="flex justify-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/50 px-3.5 py-1.5 backdrop-blur-sm">
+              <span className="size-1.5 rounded-full bg-primary" aria-hidden />
+              <ShinyText
+                disabled={reduce}
+                text={eyebrow}
+                speed={3.5}
+                className="text-xs font-medium uppercase tracking-[0.16em]"
+                color="#8fa3c8"
+                shineColor="#eef3ff"
+              />
+            </span>
+          </div>
+
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </motion.div>
+
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: reduce ? 0 : 0.12, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <SpotlightCard className="bg-card/70 p-5 backdrop-blur-md sm:p-6">
+            {loading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+            ) : (
+              <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm password</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
-                    id="confirm-password"
-                    type="password"
-                    autoComplete="new-password"
+                    id="email"
+                    type="email"
+                    autoComplete="email"
                     required
-                    minLength={8}
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="bg-background/50"
                   />
                 </div>
-              )}
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button className="w-full" size="lg" type="submit" disabled={submitting}>
-                {submitting ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
-              </Button>
-              <p className="text-center text-caption">
-                {mode === "login" ? "No account yet?" : "Already have an account?"}{" "}
-                <button
-                  type="button"
-                  className="text-primary underline-offset-4 hover:underline"
-                  onClick={toggleMode}
-                >
-                  {mode === "login" ? "Sign up" : "Sign in"}
-                </button>
-              </p>
-              <p className="text-center text-caption">
-                <Link to="/" className="text-primary underline-offset-4 hover:underline">
-                  Back to home
-                </Link>
-              </p>
-            </form>
-          )}
-        </CardContent>
-      </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete={isLogin ? "current-password" : "new-password"}
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="bg-background/50"
+                  />
+                </div>
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirm password</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      autoComplete="new-password"
+                      required
+                      minLength={8}
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      className="bg-background/50"
+                    />
+                  </div>
+                )}
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <Button className="w-full rounded-xl" size="lg" type="submit" disabled={submitting}>
+                  {submitting ? "Please wait…" : isLogin ? "Sign in" : "Create account"}
+                </Button>
+                <p className="text-center text-sm text-muted-foreground">
+                  {isLogin ? "No account yet?" : "Already have an account?"}{" "}
+                  <button
+                    type="button"
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                    onClick={toggleMode}
+                  >
+                    {isLogin ? "Sign up" : "Sign in"}
+                  </button>
+                </p>
+                <p className="text-center text-sm text-muted-foreground">
+                  <Link to="/" className="text-primary underline-offset-4 hover:underline">
+                    Back to home
+                  </Link>
+                </p>
+              </form>
+            )}
+          </SpotlightCard>
+        </motion.div>
+      </div>
     </div>
   )
 }

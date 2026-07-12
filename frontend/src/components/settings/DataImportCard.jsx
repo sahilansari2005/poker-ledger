@@ -2,7 +2,8 @@ import { useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { FileUp, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import SpotlightCard from "@/components/reactbits/SpotlightCard"
+import SectionPill from "@/components/reactbits/SectionPill"
 import { Label } from "@/components/ui/label"
 import { useIngestData } from "@/lib/queries"
 
@@ -71,14 +72,17 @@ export default function DataImportCard() {
   }
 
   return (
-    <Card className="ui-card-hover">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Import data</CardTitle>
-        <CardDescription>
-          Upload a JSON export to create tables, members, and completed sessions in your account.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SpotlightCard className="ui-card-hover space-y-4 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Import data</h2>
+          <p className="text-sm text-muted-foreground">
+            Upload a JSON export to create tables, members, and completed sessions in your account.
+          </p>
+        </div>
+        <SectionPill text="JSON" />
+      </div>
+      <div className="space-y-3">
         <div className="space-y-2">
           <Label htmlFor="import-json">JSON payload</Label>
           <textarea
@@ -133,7 +137,7 @@ export default function DataImportCard() {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
         {success && <p className="text-sm text-primary">{success}</p>}
-      </CardContent>
-    </Card>
+      </div>
+    </SpotlightCard>
   )
 }

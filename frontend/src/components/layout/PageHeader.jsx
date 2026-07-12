@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom"
+import { useReducedMotion } from "framer-motion"
 import { ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import BlurText from "@/components/reactbits/BlurText"
 import { cn } from "@/lib/utils"
 
 export default function PageHeader({
@@ -12,6 +14,8 @@ export default function PageHeader({
   className,
 }) {
   const navigate = useNavigate()
+  const reduce = useReducedMotion()
+  const titleIsString = typeof title === "string"
 
   const handleBack = () => {
     if (onBack) onBack()
@@ -35,10 +39,21 @@ export default function PageHeader({
           </Button>
         )}
         <div className="min-w-0 flex-1 space-y-1.5">
-          <h1 className="text-title">{title}</h1>
-          {subtitle && (
-            <div className="text-caption">{subtitle}</div>
+          {titleIsString && !reduce ? (
+            <>
+              <h1 className="sr-only">{title}</h1>
+              <BlurText
+                aria-hidden="true"
+                text={title}
+                delay={45}
+                stepDuration={0.28}
+                className="text-title"
+              />
+            </>
+          ) : (
+            <h1 className="text-title">{title}</h1>
           )}
+          {subtitle && <div className="text-caption">{subtitle}</div>}
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>

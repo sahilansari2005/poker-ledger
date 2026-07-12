@@ -3,9 +3,10 @@ import { Link } from "react-router-dom"
 import { Plus, Users, Coins, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import SpotlightCard from "@/components/reactbits/SpotlightCard"
+import SectionPill from "@/components/reactbits/SectionPill"
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -68,48 +69,52 @@ export default function Dashboard() {
         }
       />
 
+      <div className="mb-1">
+        <SectionPill text="Home games" />
+      </div>
       <div ref={tablesListRef} className="grid gap-5 sm:grid-cols-2 ui-stagger">
         {tables.map((table) => (
-          <Card key={table.id} className="ui-card-hover">
-            <CardHeader className="pb-2">
+          <SpotlightCard
+            key={table.id}
+            className="ui-card-hover flex flex-col gap-5 py-5"
+          >
+            <div className="space-y-1.5 px-5">
               <div className="flex items-start justify-between gap-2">
-                <CardTitle className="truncate">{table.name}</CardTitle>
+                <h3 className="truncate text-base font-semibold leading-snug">{table.name}</h3>
                 {table.role === "viewer" && (
                   <Badge variant="outline" className="shrink-0">Viewer</Badge>
                 )}
               </div>
-              <CardDescription className="flex items-center gap-4">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Users className="size-4" /> {table.members?.length || 0}
                 </span>
                 <span className="flex items-center gap-1.5 text-primary">
                   <Coins className="size-4" /> {formatMoney(table.default_buy_in, table.currency)}
                 </span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {(table.members || []).slice(0, 4).map(m => (
-                  <Badge key={m.id} variant="secondary">{m.name}</Badge>
-                ))}
-                {(table.members || []).length > 4 && (
-                  <Badge variant="outline">+{(table.members || []).length - 4}</Badge>
-                )}
               </div>
-            </CardContent>
-            <CardFooter>
+            </div>
+            <div className="flex flex-wrap gap-2 px-5">
+              {(table.members || []).slice(0, 4).map(m => (
+                <Badge key={m.id} variant="secondary">{m.name}</Badge>
+              ))}
+              {(table.members || []).length > 4 && (
+                <Badge variant="outline">+{(table.members || []).length - 4}</Badge>
+              )}
+            </div>
+            <div className="mt-auto border-t border-border/50 bg-muted/30 px-5 py-4">
               <Link to={`/table/${table.id}`} className="w-full">
                 <Button variant="secondary" className="w-full">
                   Open table
                   <ChevronRight className="size-4" />
                 </Button>
               </Link>
-            </CardFooter>
-          </Card>
+            </div>
+          </SpotlightCard>
         ))}
 
         {tables.length === 0 && (
-          <div className="col-span-full flex flex-col items-center rounded-xl border border-dashed border-border/70 bg-card px-8 py-16 text-center">
+          <SpotlightCard className="col-span-full flex flex-col items-center border-dashed bg-card/40 px-8 py-16 text-center">
             <div className="icon-well mb-5">
               <Users className="size-5" />
             </div>
@@ -120,7 +125,7 @@ export default function Dashboard() {
             <Button className="mt-6 w-full max-w-xs" onClick={() => setIsDialogOpen(true)}>
               <Plus className="size-4" /> Create table
             </Button>
-          </div>
+          </SpotlightCard>
         )}
       </div>
 

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react"
 import { Plus, Trash2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import PageHeader from "@/components/layout/PageHeader"
 import CurrencySelect from "@/components/CurrencySelect"
 import AccountCard from "@/components/auth/AccountCard"
 import DataImportCard from "@/components/settings/DataImportCard"
+import SpotlightCard from "@/components/reactbits/SpotlightCard"
+import SectionPill from "@/components/reactbits/SectionPill"
 import { FACTORY_CHIP_VALUES } from "@/lib/chipDefaults"
 import { getCurrencySymbol } from "@/lib/currency"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
@@ -106,14 +107,17 @@ export default function SettingsPage() {
       <AccountCard />
       <DataImportCard />
 
-      <Card className="ui-card-hover">
-        <CardHeader>
-          <CardTitle>Default currency</CardTitle>
-          <CardDescription>
-            Used for the chip calculator and as the default when you create a new table.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <SpotlightCard className="ui-card-hover space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Default currency</h2>
+            <p className="text-sm text-muted-foreground">
+              Used for the chip calculator and as the default when you create a new table.
+            </p>
+          </div>
+          <SectionPill text="Currency" />
+        </div>
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="default-currency">Currency</Label>
             <CurrencySelect
@@ -126,17 +130,20 @@ export default function SettingsPage() {
           <Button className="w-full" size="lg" onClick={handleSaveCurrency} disabled={isSaving}>
             {isSaving ? "Saving…" : "Save currency"}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </SpotlightCard>
 
-      <Card className="ui-card-hover">
-        <CardHeader>
-          <CardTitle>Default chip values</CardTitle>
-          <CardDescription>
-            These denominations load when you open the chip calculator or tap Reset.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <SpotlightCard className="ui-card-hover space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Default chip values</h2>
+            <p className="text-sm text-muted-foreground">
+              These denominations load when you open the chip calculator or tap Reset.
+            </p>
+          </div>
+          <SectionPill text="Chips" />
+        </div>
+        <div className="space-y-4">
           {values.map((value, index) => (
             <div key={index} className="flex items-end gap-3">
               <div className="flex-1 space-y-2">
@@ -183,8 +190,8 @@ export default function SettingsPage() {
               Reset to factory
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </SpotlightCard>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { History } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import SpotlightCard from "@/components/reactbits/SpotlightCard"
+import SectionPill from "@/components/reactbits/SectionPill"
 import { formatAuditTimestamp } from "@/lib/formatDate"
 import { useSessionAuditLog } from "@/lib/queries"
 
@@ -25,35 +26,36 @@ export default function SessionAuditLog({ sessionId }) {
 
   return (
     <section className="section-stack">
-      <div className="flex items-center gap-2">
-        <History className="size-5 text-muted-foreground" />
-        <h2 className="text-section">Activity</h2>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <History className="size-5 text-muted-foreground" />
+          <h2 className="text-section">Activity</h2>
+        </div>
+        <SectionPill text="Log" />
       </div>
 
       {isLoading && !entries.length ? (
-        <Card>
-          <CardContent className="text-caption">Loading activity…</CardContent>
-        </Card>
+        <SpotlightCard className="p-5">
+          <p className="text-caption">Loading activity…</p>
+        </SpotlightCard>
       ) : entries.length === 0 ? (
-        <Card>
-          <CardContent className="text-caption">No activity recorded yet.</CardContent>
-        </Card>
+        <SpotlightCard className="p-5">
+          <p className="text-caption">No activity recorded yet.</p>
+        </SpotlightCard>
       ) : (
         <div className="space-y-3">
           {entries.map((entry) => (
-            <Card key={entry.id}>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Badge variant={actionVariant(entry.action)}>
-                    {ACTION_LABELS[entry.action] || entry.action}
-                  </Badge>
-                  <span className="text-caption tabular-nums">
-                    {formatAuditTimestamp(entry.created_at)}
-                  </span>
-                </div>
-                <p className="text-body">{entry.message}</p>
-              </CardContent>
-            </Card>
+            <SpotlightCard key={entry.id} className="space-y-3 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Badge variant={actionVariant(entry.action)}>
+                  {ACTION_LABELS[entry.action] || entry.action}
+                </Badge>
+                <span className="text-caption tabular-nums">
+                  {formatAuditTimestamp(entry.created_at)}
+                </span>
+              </div>
+              <p className="text-body">{entry.message}</p>
+            </SpotlightCard>
           ))}
         </div>
       )}

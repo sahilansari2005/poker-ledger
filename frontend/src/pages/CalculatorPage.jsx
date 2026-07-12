@@ -2,9 +2,10 @@ import { useCallback, useMemo, useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Plus, Coins, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PageHeader from "@/components/layout/PageHeader"
 import CalculatorRow from "@/components/calculator/CalculatorRow"
+import SpotlightCard from "@/components/reactbits/SpotlightCard"
+import SectionPill from "@/components/reactbits/SectionPill"
 import { valuesToCalculatorRows } from "@/lib/chipDefaults"
 import { formatMoney, getCurrencySymbol } from "@/lib/currency"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
@@ -74,18 +75,17 @@ export default function CalculatorPage() {
         }
       />
 
-      <Card className="border-primary/20 bg-primary/8">
-        <CardContent className="space-y-1 py-8 text-center">
-          <p className="text-caption">Total value</p>
-          <p className="text-title text-primary tabular-nums">
-            {formatMoney(total, currency)}
-          </p>
-        </CardContent>
-      </Card>
+      <SpotlightCard className="space-y-1 border-primary/20 bg-primary/8 px-5 py-8 text-center">
+        <SectionPill text="Stack total" className="mb-3" />
+        <p className="text-caption">Total value</p>
+        <p className="text-title text-primary tabular-nums">
+          {formatMoney(total, currency)}
+        </p>
+      </SpotlightCard>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>Your chips</CardTitle>
+      <SpotlightCard className="flex flex-col gap-4 p-5">
+        <div className="flex flex-row items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">Your chips</h2>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={reset}>
               Reset
@@ -94,8 +94,8 @@ export default function CalculatorPage() {
               <Plus className="size-4" /> Add
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div>
           {rows.map((row) => {
             const item = breakdownById.get(row.id)
             return (
@@ -113,17 +113,15 @@ export default function CalculatorPage() {
               />
             )
           })}
-        </CardContent>
-      </Card>
+        </div>
+      </SpotlightCard>
 
       {activeBreakdown.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Coins className="size-4 text-primary" /> Breakdown
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <SpotlightCard className="flex flex-col gap-4 p-5">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Coins className="size-4 text-primary" /> Breakdown
+          </h2>
+          <div className="space-y-3">
             {activeBreakdown.map((r) => (
               <div
                 key={r.id}
@@ -135,8 +133,8 @@ export default function CalculatorPage() {
                 <span className="font-medium tabular-nums">{formatMoney(r.subtotal, currency)}</span>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </SpotlightCard>
       )}
     </div>
   )

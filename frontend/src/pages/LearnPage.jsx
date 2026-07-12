@@ -1,7 +1,7 @@
-
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import PageHeader from "@/components/layout/PageHeader"
+import SpotlightCard from "@/components/reactbits/SpotlightCard"
+import SectionPill from "@/components/reactbits/SectionPill"
 
 const POKER_HANDS = [
   {
@@ -101,22 +101,24 @@ export default function LearnPage() {
         subtitle="From royal flush down to high card."
       />
 
+      <div className="mb-2 flex justify-start">
+        <SectionPill text="Hand rankings" />
+      </div>
+
       <div className="space-y-5">
         {POKER_HANDS.map((hand) => (
-          <Card key={hand.rank} className={hand.tint}>
-            <CardContent className="space-y-5">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">#{hand.rank}</Badge>
-                  <h2 className="text-section">{hand.name}</h2>
-                </div>
-                <p className="text-caption">{hand.description}</p>
+          <SpotlightCard key={hand.rank} className={`space-y-5 p-5 ${hand.tint}`}>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">#{hand.rank}</Badge>
+                <h2 className="text-section">{hand.name}</h2>
               </div>
-              <div className="flex flex-wrap justify-center gap-2 rounded-xl bg-primary/5 p-4">
-                {hand.example.map((card, idx) => renderCard(card, idx))}
-              </div>
-            </CardContent>
-          </Card>
+              <p className="text-caption">{hand.description}</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 rounded-xl bg-primary/5 p-4">
+              {hand.example.map((card, idx) => renderCard(card, idx))}
+            </div>
+          </SpotlightCard>
         ))}
       </div>
     </div>
