@@ -36,10 +36,66 @@ class Table(models.Model):
     name = models.CharField(max_length=255)
     default_buy_in = models.DecimalField(max_digits=10, decimal_places=2, default=10)
     currency = models.CharField(max_length=3, default="GBP")
+    # Multi-use invite/share token. Null = sharing disabled. Generated with
+    # secrets.token_urlsafe(32) in the share-link view action.
+    share_token = models.CharField(max_length=64, unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+
+
+class TableMembership(models.Model):
+    """A user who joined a table via its share link. The owner never gets a row."""
+
+    ROLE_VIEWER = "viewer"
+    ROLE_CHOICES = [(ROLE_VIEWER, "Viewer")]
+
+    table = models.ForeignKey(Table, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="table_memberships")
+    # Denormalized copy of table.owner_id so the RLS policy on this table never
+    # needs to subquery ledger_table (which would recurse with ledger_table's
+    # member-read policy). Ownership is never transferred, so it cannot drift.
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+", db_index=True)
+    role = models.CharField(max_length=16, choices=ROLE_CHOICES, default=ROLE_VIEWER)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("table", "user")
+
+    def __str__(self):
+        return f"{self.user} @ {self.table.name} ({self.role})"
+
+
+class ChangeRequest(models.Model):
+    STATUS_OPEN = "open"
+    STATUS_RESOLVED = "resolved"
+    STATUS_REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (STATUS_OPEN, "Open"),
+        (STATUS_RESOLVED, "Resolved"),
+        (STATUS_REJECTED, "Rejected"),
+    ]
+
+    table = models.ForeignKey(Table, on_delete=models.CASCADE, related_name="change_requests")
+    session = models.ForeignKey(
+        "Session", on_delete=models.CASCADE, related_name="change_requests", null=True, blank=True
+    )
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="change_requests")
+    # Denormalized table.owner_id — same RLS rationale as TableMembership.owner.
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+", db_index=True)
+    message = models.TextField()
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_OPEN, db_index=True)
+    resolution_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["table", "status"])]
+
+    def __str__(self):
+        return f"Request #{self.pk} on {self.table.name} ({self.status})"
 
 
 class TableMember(models.Model):

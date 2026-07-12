@@ -11,7 +11,7 @@ import {
 import { formatSessionDate } from "@/lib/formatDate"
 import { useUpdateSession } from "@/lib/queries"
 
-export default function SessionDateEdit({ sessionId, tableId, date }) {
+export default function SessionDateEdit({ sessionId, tableId, date, readOnly = false }) {
   const updateSession = useUpdateSession(sessionId, tableId)
   const [open, setOpen] = useState(false)
   const [editDate, setEditDate] = useState(date)
@@ -22,6 +22,15 @@ export default function SessionDateEdit({ sessionId, tableId, date }) {
     setEditDate(date)
     setDisplayDate(date)
   }, [date])
+
+  if (readOnly) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+        <Calendar className="size-3.5 shrink-0" />
+        <span>{formatSessionDate(date)}</span>
+      </span>
+    )
+  }
 
   const commitDate = (nextDate) => {
     if (!nextDate) {

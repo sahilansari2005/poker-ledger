@@ -101,6 +101,39 @@ export const tablesApi = {
         ...(date ? { date } : {}),
       }),
     }),
+
+  getShareLink: (id) => request(`/tables/${id}/share-link/`),
+
+  rotateShareLink: (id) => request(`/tables/${id}/share-link/`, { method: "POST" }),
+
+  revokeShareLink: (id) => request(`/tables/${id}/share-link/`, { method: "DELETE" }),
+
+  listMemberships: (id) => request(`/tables/${id}/memberships/`),
+
+  removeMembership: (id, membershipId) =>
+    request(`/tables/${id}/memberships/${membershipId}/`, { method: "DELETE" }),
+
+  leave: (id) => request(`/tables/${id}/leave/`, { method: "POST" }),
+
+  listRequests: (id) => request(`/tables/${id}/requests/`),
+
+  createRequest: (id, { session, message }) =>
+    request(`/tables/${id}/requests/`, {
+      method: "POST",
+      body: JSON.stringify({ session: session ?? null, message }),
+    }),
+
+  resolveRequest: (id, requestId, { status, resolutionNote }) =>
+    request(`/tables/${id}/requests/${requestId}/resolve/`, {
+      method: "POST",
+      body: JSON.stringify({ status, resolution_note: resolutionNote || "" }),
+    }),
+}
+
+export const sharedApi = {
+  get: (token) => request(`/shared/${token}/`),
+
+  join: (token) => request(`/shared/${token}/join/`, { method: "POST" }),
 }
 
 export const sessionsApi = {

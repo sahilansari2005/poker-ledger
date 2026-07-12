@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,11 @@ import { getConfig, getSession, isAuthenticatedSession, login, parseAllauthError
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  // Post-auth destination (e.g. back to a /shared/<token> page). Only allow
+  // in-app paths to avoid open redirects.
+  const rawNext = new URLSearchParams(location.search).get("next")
+  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/"
   const [mode, setMode] = useState("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -24,7 +29,7 @@ export default function LoginPage() {
         await getConfig()
         const session = await getSession()
         if (!cancelled && isAuthenticatedSession(session)) {
-          navigate("/", { replace: true })
+          navigate(next, { replace: true })
         }
       } catch {
         // CSRF priming failed; form submit may still work after retry.
@@ -37,7 +42,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true
     }
-  }, [navigate])
+  }, [navigate, next])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -56,7 +61,7 @@ export default function LoginPage() {
           : await signup(email.trim(), password)
 
       if (response.ok && isAuthenticatedSession(response)) {
-        navigate("/", { replace: true })
+        navigate(next, { replace: true })
         return
       }
 

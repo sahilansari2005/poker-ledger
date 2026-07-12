@@ -29,6 +29,7 @@ export default function SummaryPage() {
     </div>
   )
 
+  const canEdit = session.can_edit !== false
   const players = session.players || []
   const currency = session.table_currency || "GBP"
   const totalPot = players.reduce((sum, p) => sum + parseFloat(p.total_buy_in), 0)
@@ -48,7 +49,12 @@ export default function SummaryPage() {
         backTo={`/table/${session.table}`}
         title="Session Summary"
         subtitle={
-          <SessionDateEdit sessionId={session.id} tableId={session.table} date={session.date} />
+          <SessionDateEdit
+            sessionId={session.id}
+            tableId={session.table}
+            date={session.date}
+            readOnly={!canEdit}
+          />
         }
       />
 

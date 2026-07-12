@@ -1,13 +1,20 @@
+import secrets
 from decimal import Decimal
 
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from . import cache_utils as cache
 from .audit import log_session_audit
-from .models import Table, Session, SessionPlayer, SessionSettlement
+from .models import ChangeRequest, Table, TableMembership, Session, SessionPlayer, SessionSettlement
 from .serializers import (
+    ChangeRequestSerializer,
+    ResolveRequestSerializer,
+    TableMembershipSerializer,
     TableSerializer,
     SessionSerializer,
     SessionDetailSerializer,
@@ -20,6 +27,11 @@ from .serializers import (
 from .settlement import compute_settlements
 
 SESSION_ORDERING = set(cache.SESSION_ORDERINGS)
+
+
+def _viewer_ids(table):
+    """Everyone whose cached payloads reference this table: owner + members."""
+    return [table.owner_id, *table.memberships.values_list("user_id", flat=True)]
 
 
 def _persist_settlements(session):
@@ -44,8 +56,20 @@ def _persist_settlements(session):
 class TableViewSet(viewsets.ModelViewSet):
     serializer_class = TableSerializer
 
+    # Mutations stay owner-only (members get 404, same as strangers); reads
+    # include tables the user joined via the share link.
+    OWNER_ONLY_ACTIONS = {"update", "partial_update", "destroy"}
+
     def get_queryset(self):
-        return Table.objects.filter(owner=self.request.user).prefetch_related("members", "transfers")
+        user = self.request.user
+        base = Table.objects.prefetch_related("members", "transfers")
+        if self.action in self.OWNER_ONLY_ACTIONS:
+            return base.filter(owner=user)
+        return base.filter(Q(owner=user) | Q(memberships__user=user)).distinct()
+
+    def _require_owner(self, table):
+        if table.owner_id != self.request.user.pk:
+            raise PermissionDenied("Only the table owner can do this.")
 
     def list(self, request, *args, **kwargs):
         owner_id = request.user.pk
@@ -76,25 +100,25 @@ class TableViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         table = serializer.save()
-        cache.invalidate_table(self.request.user.pk, table.id)
+        cache.invalidate_table(_viewer_ids(table), table.id)
 
     def perform_destroy(self, instance):
-        owner_id = self.request.user.pk
+        viewer_ids = _viewer_ids(instance)
         table_id = instance.id
         instance.delete()
-        cache.invalidate_table(owner_id, table_id)
+        cache.invalidate_table(viewer_ids, table_id)
 
     @action(detail=True, methods=["get", "post"], url_path="sessions")
     def sessions(self, request, pk=None):
         table = self.get_object()
-        owner_id = request.user.pk
+        viewer_id = request.user.pk
 
         if request.method == "GET":
             ordering = request.query_params.get("ordering", "-date")
             if ordering not in SESSION_ORDERING:
                 ordering = "-date"
 
-            key = cache.sessions_list_key(owner_id, table.id, ordering)
+            key = cache.sessions_list_key(viewer_id, table.id, ordering)
             cached = cache.cache_get(key)
             if cached is not None:
                 return Response(cached)
@@ -104,13 +128,14 @@ class TableViewSet(viewsets.ModelViewSet):
             cache.cache_set(key, data)
             return Response(data)
 
+        self._require_owner(table)
         serializer = SessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         session = serializer.save(table=table)
         player_names = request.data.get("player_names", [])
         log_session_audit(
             session,
-            actor_id=str(owner_id),
+            actor_id=str(viewer_id),
             action="session_created",
             message=f"Session started with {len(player_names)} player(s).",
             details={
@@ -118,39 +143,151 @@ class TableViewSet(viewsets.ModelViewSet):
                 "player_names": player_names,
             },
         )
-        cache.invalidate_table(owner_id, table.id)
+        cache.invalidate_table(_viewer_ids(table), table.id)
         return Response(SessionSerializer(session).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get", "post", "delete"], url_path="share-link")
+    def share_link(self, request, pk=None):
+        table = self.get_object()
+        self._require_owner(table)
+
+        if request.method == "GET":
+            return Response({"share_token": table.share_token})
+
+        if request.method == "POST":
+            table.share_token = secrets.token_urlsafe(32)
+            table.save(update_fields=["share_token"])
+            return Response({"share_token": table.share_token})
+
+        table.share_token = None
+        table.save(update_fields=["share_token"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"], url_path="memberships")
+    def memberships(self, request, pk=None):
+        table = self.get_object()
+        self._require_owner(table)
+        memberships = table.memberships.select_related("user").order_by("created_at")
+        return Response(TableMembershipSerializer(memberships, many=True).data)
+
+    @action(detail=True, methods=["delete"], url_path=r"memberships/(?P<membership_id>\d+)")
+    def remove_membership(self, request, pk=None, membership_id=None):
+        table = self.get_object()
+        self._require_owner(table)
+        try:
+            membership = table.memberships.get(pk=membership_id)
+        except TableMembership.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        removed_user_id = membership.user_id
+        membership.delete()
+        cache.invalidate_table([removed_user_id], table.id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="leave")
+    def leave(self, request, pk=None):
+        table = self.get_object()
+        deleted, _ = table.memberships.filter(user=request.user).delete()
+        if not deleted:
+            return Response({"detail": "You are not a member of this table."}, status=status.HTTP_400_BAD_REQUEST)
+        cache.invalidate_table([request.user.pk], table.id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get", "post"], url_path="requests")
+    def requests(self, request, pk=None):
+        table = self.get_object()
+
+        if request.method == "GET":
+            queryset = table.change_requests.select_related("requester", "session")
+            if table.owner_id != request.user.pk:
+                queryset = queryset.filter(requester=request.user)
+            status_filter = request.query_params.get("status")
+            if status_filter:
+                queryset = queryset.filter(status=status_filter)
+            return Response(ChangeRequestSerializer(queryset, many=True).data)
+
+        serializer = ChangeRequestSerializer(data=request.data, context={"table": table})
+        serializer.is_valid(raise_exception=True)
+        change_request = serializer.save(
+            table=table,
+            requester=request.user,
+            owner_id=table.owner_id,
+        )
+        if change_request.session_id:
+            log_session_audit(
+                change_request.session,
+                actor_id=str(request.user.pk),
+                action="change_request_raised",
+                message=f"A change request was raised: {change_request.message[:200]}",
+                details={"change_request_id": change_request.id},
+            )
+        return Response(ChangeRequestSerializer(change_request).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path=r"requests/(?P<request_id>\d+)/resolve")
+    def resolve_request(self, request, pk=None, request_id=None):
+        table = self.get_object()
+        self._require_owner(table)
+        try:
+            change_request = table.change_requests.get(pk=request_id)
+        except ChangeRequest.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        if change_request.status != ChangeRequest.STATUS_OPEN:
+            return Response({"detail": "Request is not open."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = ResolveRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        change_request.status = serializer.validated_data["status"]
+        change_request.resolution_note = serializer.validated_data["resolution_note"]
+        change_request.resolved_at = timezone.now()
+        change_request.save(update_fields=["status", "resolution_note", "resolved_at"])
+
+        if change_request.session_id:
+            log_session_audit(
+                change_request.session,
+                actor_id=str(request.user.pk),
+                action=f"change_request_{change_request.status}",
+                message=f"Change request #{change_request.id} was {change_request.status}.",
+                details={
+                    "change_request_id": change_request.id,
+                    "resolution_note": change_request.resolution_note,
+                },
+            )
+        return Response(ChangeRequestSerializer(change_request).data)
 
 
 class SessionViewSet(viewsets.GenericViewSet):
     serializer_class = SessionSerializer
 
+    # Members may read; only the table owner may mutate (members get 404 on
+    # mutation endpoints because the mutating queryset excludes their tables).
+    READ_ACTIONS = {"retrieve", "audit_log"}
+
     def get_queryset(self):
-        return (
-            Session.objects.filter(table__owner=self.request.user)
-            .select_related("table")
-            .prefetch_related("players", "settlements")
-        )
+        user = self.request.user
+        base = Session.objects.select_related("table").prefetch_related("players", "settlements")
+        if self.action in self.READ_ACTIONS:
+            return base.filter(Q(table__owner=user) | Q(table__memberships__user=user)).distinct()
+        return base.filter(table__owner=user)
 
     def retrieve(self, request, pk=None):
-        owner_id = request.user.pk
-        key = cache.session_key(owner_id, pk)
+        viewer_id = request.user.pk
+        key = cache.session_key(viewer_id, pk)
         cached = cache.cache_get(key)
         if cached is not None:
             return Response(cached)
 
         session = self.get_object()
-        data = SessionDetailSerializer(session).data
+        data = SessionDetailSerializer(session, context={"request": request}).data
         cache.cache_set(key, data)
         return Response(data)
 
     def destroy(self, request, pk=None):
         session = self.get_object()
-        owner_id = request.user.pk
+        viewer_ids = _viewer_ids(session.table)
         table_id = session.table_id
         session_id = session.id
         session.delete()
-        cache.invalidate_session(owner_id, session_id, table_id)
+        cache.invalidate_session(viewer_ids, session_id, table_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def partial_update(self, request, pk=None):
@@ -173,14 +310,13 @@ class SessionViewSet(viewsets.GenericViewSet):
                 details={"old_date": str(old_date), "new_date": str(session.date)},
             )
 
-        owner_id = request.user.pk
-        cache.invalidate_session(owner_id, session.id, session.table_id)
-        data = SessionDetailSerializer(session).data
-        cache.cache_set(cache.session_key(owner_id, session.id), data)
+        self._invalidate_session_cache(session)
+        data = SessionDetailSerializer(session, context={"request": request}).data
+        cache.cache_set(cache.session_key(request.user.pk, session.id), data)
         return Response(data)
 
     def _invalidate_session_cache(self, session):
-        cache.invalidate_session(self.request.user.pk, session.id, session.table_id)
+        cache.invalidate_session(_viewer_ids(session.table), session.id, session.table_id)
 
     @action(detail=True, methods=["get"], url_path="audit-log")
     def audit_log(self, request, pk=None):
@@ -313,4 +449,4 @@ class SessionViewSet(viewsets.GenericViewSet):
 
         self._invalidate_session_cache(session)
         session = self.get_queryset().get(pk=session.pk)
-        return Response(SessionDetailSerializer(session).data)
+        return Response(SessionDetailSerializer(session, context={"request": request}).data)

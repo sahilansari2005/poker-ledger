@@ -9,12 +9,14 @@ import LearnPage from "./pages/LearnPage"
 import CalculatorPage from "./pages/CalculatorPage"
 import SettingsPage from "./pages/SettingsPage"
 import LoginPage from "./pages/LoginPage"
+import SharedTablePage from "./pages/SharedTablePage"
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/shared/:token" element={<SharedTablePage />} />
         <Route element={<AllauthAuthGate />}>
           <Route element={<MobileShell />}>
             <Route path="/" element={<Dashboard />} />

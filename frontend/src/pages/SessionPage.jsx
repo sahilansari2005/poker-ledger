@@ -86,6 +86,7 @@ export default function SessionPage() {
     </div>
   )
 
+  const canEdit = session.can_edit !== false
   const currency = session.table_currency || "GBP"
   const currencySymbol = getCurrencySymbol(currency)
 
@@ -170,12 +171,18 @@ export default function SessionPage() {
     <div className="space-y-5 pb-32">
       <PageHeader
         backTo={`/table/${session.table}`}
-        title={isCashingOut ? "Cash Out" : "Active Session"}
+        title={isCashingOut ? "Cash Out" : canEdit ? "Active Session" : "Session"}
         subtitle={
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-            <SessionDateEdit sessionId={session.id} tableId={session.table} date={session.date} />
+            <SessionDateEdit
+              sessionId={session.id}
+              tableId={session.table}
+              date={session.date}
+              readOnly={!canEdit}
+            />
             <span className="text-border">·</span>
             <span>{session.players.length} players</span>
+            {!canEdit && <Badge variant="outline">Viewer</Badge>}
           </span>
         }
       />
@@ -195,23 +202,25 @@ export default function SessionPage() {
                   {formatMoney(p.total_buy_in, currency)}
                 </Badge>
               </CardHeader>
-              <CardContent>
-                <BuyInField
-                  playerId={p.id}
-                  playerName={p.name}
-                  currencySymbol={currencySymbol}
-                  value={addValues[p.id] || ""}
-                  onChange={(value) => setAddValues((prev) => ({ ...prev, [p.id]: value }))}
-                  onClear={() => clearAddValue(p.id)}
-                  onSubmit={() => handleAddSubmit(p.id)}
-                  disabled={session.is_completed}
-                  isPending={addBuyIn.isPending}
-                />
-              </CardContent>
+              {canEdit && (
+                <CardContent>
+                  <BuyInField
+                    playerId={p.id}
+                    playerName={p.name}
+                    currencySymbol={currencySymbol}
+                    value={addValues[p.id] || ""}
+                    onChange={(value) => setAddValues((prev) => ({ ...prev, [p.id]: value }))}
+                    onClear={() => clearAddValue(p.id)}
+                    onSubmit={() => handleAddSubmit(p.id)}
+                    disabled={session.is_completed}
+                    isPending={addBuyIn.isPending}
+                  />
+                </CardContent>
+              )}
             </Card>
           ))}
 
-          {!session.is_completed && (
+          {canEdit && !session.is_completed && (
             <Button variant="outline" className="h-12 w-full rounded-xl border-dashed" onClick={() => setIsAddPlayerOpen(true)}>
               <UserPlus className="mr-2 size-4" /> Add Player
             </Button>
@@ -294,7 +303,7 @@ export default function SessionPage() {
         </div>
       )}
 
-      {!session.is_completed && (
+      {canEdit && !session.is_completed && (
         <StickyActionBar>
           {!isCashingOut ? (
             <div className="flex gap-2">
@@ -327,59 +336,63 @@ export default function SessionPage() {
 
       <SessionAuditLog sessionId={session.id} />
 
-      <ResponsiveDialog open={isDiscrepancyDialogOpen} onOpenChange={setIsDiscrepancyDialogOpen}>
-        <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Session doesn&apos;t balance</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>
-              Buy-ins and cash-outs don&apos;t match. Are you sure you want to close this session with{" "}
-              <span className="font-semibold text-destructive">{formatMoney(discrepancyAmount, currency)}</span> in discrepancy?
-            </ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <div className="grid grid-cols-2 gap-3 py-2 text-center text-sm">
-            <div className="rounded-lg bg-muted/50 p-3">
-              <p className="text-xs text-muted-foreground">In play</p>
-              <p className="font-bold">{formatMoney(totalBuyIn, currency)}</p>
-            </div>
-            <div className="rounded-lg bg-muted/50 p-3">
-              <p className="text-xs text-muted-foreground">Cashed out</p>
-              <p className="font-bold">{formatMoney(totalCashOut, currency)}</p>
-            </div>
-          </div>
-          <ResponsiveDialogFooter>
-            <Button variant="ghost" onClick={() => setIsDiscrepancyDialogOpen(false)}>Go back</Button>
-            <Button
-              variant="destructive"
-              onClick={() => handleEndSession(true)}
-              disabled={completeSession.isPending}
-            >
-              {completeSession.isPending ? "Closing…" : "Close session anyway"}
-            </Button>
-          </ResponsiveDialogFooter>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      {canEdit && (
+        <>
+          <ResponsiveDialog open={isDiscrepancyDialogOpen} onOpenChange={setIsDiscrepancyDialogOpen}>
+            <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
+              <ResponsiveDialogHeader>
+                <ResponsiveDialogTitle>Session doesn&apos;t balance</ResponsiveDialogTitle>
+                <ResponsiveDialogDescription>
+                  Buy-ins and cash-outs don&apos;t match. Are you sure you want to close this session with{" "}
+                  <span className="font-semibold text-destructive">{formatMoney(discrepancyAmount, currency)}</span> in discrepancy?
+                </ResponsiveDialogDescription>
+              </ResponsiveDialogHeader>
+              <div className="grid grid-cols-2 gap-3 py-2 text-center text-sm">
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-xs text-muted-foreground">In play</p>
+                  <p className="font-bold">{formatMoney(totalBuyIn, currency)}</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <p className="text-xs text-muted-foreground">Cashed out</p>
+                  <p className="font-bold">{formatMoney(totalCashOut, currency)}</p>
+                </div>
+              </div>
+              <ResponsiveDialogFooter>
+                <Button variant="ghost" onClick={() => setIsDiscrepancyDialogOpen(false)}>Go back</Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => handleEndSession(true)}
+                  disabled={completeSession.isPending}
+                >
+                  {completeSession.isPending ? "Closing…" : "Close session anyway"}
+                </Button>
+              </ResponsiveDialogFooter>
+            </ResponsiveDialogContent>
+          </ResponsiveDialog>
 
-      <ResponsiveDialog open={isAddPlayerOpen} onOpenChange={setIsAddPlayerOpen}>
-        <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Add Player</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>Add a late-arriving player to this session.</ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <div className="space-y-3 py-2">
-            <Label>Player Name</Label>
-            <Input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)}
-              placeholder="Their name" className="h-11 bg-background/50"
-              onKeyDown={e => e.key === "Enter" && handleAddPlayer()} autoFocus />
-            {addPlayerError && <p className="text-sm text-destructive">{addPlayerError}</p>}
-          </div>
-          <ResponsiveDialogFooter>
-            <Button variant="ghost" onClick={() => setIsAddPlayerOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddPlayer} disabled={!newPlayerName.trim() || addPlayer.isPending}>
-              {addPlayer.isPending ? "Adding…" : "Add Player"}
-            </Button>
-          </ResponsiveDialogFooter>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+          <ResponsiveDialog open={isAddPlayerOpen} onOpenChange={setIsAddPlayerOpen}>
+            <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
+              <ResponsiveDialogHeader>
+                <ResponsiveDialogTitle>Add Player</ResponsiveDialogTitle>
+                <ResponsiveDialogDescription>Add a late-arriving player to this session.</ResponsiveDialogDescription>
+              </ResponsiveDialogHeader>
+              <div className="space-y-3 py-2">
+                <Label>Player Name</Label>
+                <Input value={newPlayerName} onChange={e => setNewPlayerName(e.target.value)}
+                  placeholder="Their name" className="h-11 bg-background/50"
+                  onKeyDown={e => e.key === "Enter" && handleAddPlayer()} autoFocus />
+                {addPlayerError && <p className="text-sm text-destructive">{addPlayerError}</p>}
+              </div>
+              <ResponsiveDialogFooter>
+                <Button variant="ghost" onClick={() => setIsAddPlayerOpen(false)}>Cancel</Button>
+                <Button onClick={handleAddPlayer} disabled={!newPlayerName.trim() || addPlayer.isPending}>
+                  {addPlayer.isPending ? "Adding…" : "Add Player"}
+                </Button>
+              </ResponsiveDialogFooter>
+            </ResponsiveDialogContent>
+          </ResponsiveDialog>
+        </>
+      )}
     </div>
   )
 }
