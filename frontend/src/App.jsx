@@ -23,8 +23,8 @@ function App() {
         <Route element={<AllauthAuthGate />}>
           <Route element={<MobileShell />}>
             <Route path="/tables" element={<Dashboard />} />
-            <Route path="/table/:id" element={<TablePage />} />
             <Route path="/table/:id/settings" element={<TableSettingsPage />} />
+            <Route path="/table/:id" element={<TablePage />} />
             <Route path="/session/:id" element={<SessionPage />} />
             <Route path="/summary/:id" element={<SummaryPage />} />
             <Route path="/learn" element={<LearnPage />} />

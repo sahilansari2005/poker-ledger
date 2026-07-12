@@ -60,7 +60,7 @@ function ResponsiveDialogContent({
         <Drawer.Content
           data-slot="responsive-dialog-content"
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 flex max-h-[min(90dvh,100dvh)] flex-col rounded-t-xl border border-border/60 bg-popover pb-[env(safe-area-inset-bottom)] text-popover-foreground shadow-xl outline-none",
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[min(90dvh,100dvh)] flex-col rounded-t-xl border border-border/60 bg-card/90 pb-[env(safe-area-inset-bottom)] text-card-foreground shadow-xl outline-none backdrop-blur-xl",
             className
           )}
           {...props}
@@ -115,7 +115,7 @@ function ResponsiveDialogFooter({ className, ...props }) {
     <DialogFooter
       className={cn(
         isMobile &&
-          "mt-auto shrink-0 border-t border-border/20 bg-popover pt-4 pb-4",
+          "mt-auto shrink-0 border-t border-border/20 bg-transparent pt-4 pb-4",
         className
       )}
       {...props}

@@ -128,7 +128,7 @@ export default function Dashboard() {
       </div>
 
       <ResponsiveDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <ResponsiveDialogContent className="sm:max-w-md">
+        <ResponsiveDialogContent className="border-border/50 bg-card/80 backdrop-blur-xl sm:max-w-md">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>New poker table</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>Name the table and add your regulars.</ResponsiveDialogDescription>
@@ -136,21 +136,31 @@ export default function Dashboard() {
           <div className="space-y-5 py-2">
             <div className="space-y-2">
               <Label htmlFor="name">Table name</Label>
-              <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Friday night game" />
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Friday night game"
+                className="h-11 bg-background/50"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="members">Members</Label>
               <Input
                 id="members"
                 value={membersStr}
-                onChange={e => setMembersStr(e.target.value)}
+                onChange={(e) => setMembersStr(e.target.value)}
                 placeholder="John, Jane, Daniel"
+                className="h-11 bg-background/50"
               />
+              <p className="text-caption">Comma-separated names for who usually plays.</p>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <ResponsiveDialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button className="w-full sm:w-auto" onClick={handleCreateTable} disabled={createTable.isPending}>
               {createTable.isPending ? "Creating…" : "Create table"}
             </Button>

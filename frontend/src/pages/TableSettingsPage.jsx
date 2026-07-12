@@ -160,7 +160,7 @@ export default function TableSettingsPage() {
               id="table-name"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="h-11"
+              className="h-11 bg-background/50"
             />
           </div>
           <div className="space-y-2">
@@ -169,6 +169,7 @@ export default function TableSettingsPage() {
               id="table-currency"
               value={editCurrency}
               onChange={setEditCurrency}
+              className="bg-background/50"
             />
           </div>
           <div className="space-y-2">
@@ -178,7 +179,7 @@ export default function TableSettingsPage() {
               value={editMembersStr}
               onChange={(e) => setEditMembersStr(e.target.value)}
               placeholder="John, Jane, Daniel"
-              className="h-11"
+              className="h-11 bg-background/50"
             />
             <p className="text-caption">Comma-separated names for who usually plays.</p>
           </div>

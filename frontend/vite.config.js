@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const backendPort = process.env.BACKEND_PORT || '8000'
+const backendOrigin = `http://127.0.0.1:${backendPort}`
 
 export default defineConfig({
   plugins: [
@@ -20,8 +21,8 @@ export default defineConfig({
         name: 'Poker Ledger',
         short_name: 'Poker Ledger',
         description: 'Track poker buy-ins, cash-outs, chips, and session stats.',
-        theme_color: '#4f5bd5',
-        background_color: '#dde3ef',
+        theme_color: '#1c1f2e',
+        background_color: '#1c1f2e',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
@@ -69,13 +70,17 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: `http://127.0.0.1:${backendPort}`,
+        target: backendOrigin,
         changeOrigin: true,
       },
       '/_allauth': {
-        target: `http://127.0.0.1:${backendPort}`,
+        target: backendOrigin,
         changeOrigin: true,
       },
     },
   },
 })
+
+if (process.env.NODE_ENV !== 'production') {
+  console.log(`[vite] proxying /api and /_allauth → ${backendOrigin}`)
+}
