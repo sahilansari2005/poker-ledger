@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { Plus, Users, Coins, ChevronRight } from "lucide-react"
+import { Plus, Users, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,6 @@ import {
   ResponsiveDialogDescription,
 } from "@/components/ui/responsive-dialog"
 import PageHeader from "@/components/layout/PageHeader"
-import { formatMoney } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useTables, useCreateTable } from "@/lib/queries"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
@@ -29,18 +28,16 @@ export default function Dashboard() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [name, setName] = useState("")
-  const [buyIn, setBuyIn] = useState("10")
   const [membersStr, setMembersStr] = useState("")
   const [error, setError] = useState("")
 
   const handleCreateTable = () => {
-    if (!name || !buyIn) return
+    if (!name) return
     setError("")
 
     createTable.mutate(
       {
         name,
-        buyIn: parseFloat(buyIn) || 0,
         memberNames: membersStr.split(",").map(s => s.trim()).filter(Boolean),
         currency: defaultCurrency,
       },
@@ -49,7 +46,6 @@ export default function Dashboard() {
           setIsDialogOpen(false)
           setName("")
           setMembersStr("")
-          setBuyIn("10")
         },
         onError: (err) => setError(err.message),
       }
@@ -87,10 +83,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <Users className="size-4" /> {table.members?.length || 0}
-                </span>
-                <span className="flex items-center gap-1.5 text-primary">
-                  <Coins className="size-4" /> {formatMoney(table.default_buy_in, table.currency)}
+                  <Users className="size-4" /> {table.members?.length || 0} players
                 </span>
               </div>
             </div>
@@ -133,16 +126,12 @@ export default function Dashboard() {
         <ResponsiveDialogContent className="sm:max-w-md">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>New poker table</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>Set up stakes and add members.</ResponsiveDialogDescription>
+            <ResponsiveDialogDescription>Name the table and add your regulars.</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <div className="space-y-5 py-2">
             <div className="space-y-2">
               <Label htmlFor="name">Table name</Label>
               <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Friday night game" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="buyin">Default buy-in</Label>
-              <Input id="buyin" type="number" inputMode="decimal" value={buyIn} onChange={e => setBuyIn(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="members">Members</Label>

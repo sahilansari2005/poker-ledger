@@ -63,7 +63,7 @@ function OverviewSection({ authed, reduce, motionProps }) {
     {
       icon: Layers,
       title: "Tables for your crew",
-      body: "Create a table, set the buy-in and currency, and add your regulars once.",
+      body: "Create a table, pick a currency, and add your regulars once.",
     },
     {
       icon: Calculator,

@@ -64,23 +64,21 @@ export const tablesApi = {
 
   get: (id) => request(`/tables/${id}/`),
 
-  create: (name, defaultBuyIn, memberNames, currency) =>
+  create: (name, memberNames, currency) =>
     request("/tables/", {
       method: "POST",
       body: JSON.stringify({
         name,
-        default_buy_in: defaultBuyIn,
         member_names: memberNames,
         currency: currency || undefined,
       }),
     }),
 
-  update: (id, name, defaultBuyIn, memberNames, currency) =>
+  update: (id, name, memberNames, currency) =>
     request(`/tables/${id}/`, {
       method: "PUT",
       body: JSON.stringify({
         name,
-        default_buy_in: defaultBuyIn,
         member_names: memberNames,
         currency,
       }),
