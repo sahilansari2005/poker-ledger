@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { Play, Users, Settings, Trash2, ArrowDownWideNarrow, ArrowUpWideNarrow, Copy, Check, MessageSquarePlus, LogOut } from "lucide-react"
+import { Play, Users, Settings, Trash2, ArrowDownWideNarrow, ArrowUpWideNarrow, Copy, Check, MessageSquarePlus, LogOut, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -40,6 +40,7 @@ import Leaderboard from "@/components/table/Leaderboard"
 import SessionsList from "@/components/table/SessionsList"
 import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
 import RequestsList from "@/components/table/RequestsList"
+import { exportTableToJson } from "@/lib/tableExport"
 
 export default function TablePage() {
   const { id } = useParams()
@@ -165,6 +166,10 @@ export default function TablePage() {
       onSuccess: () => navigate("/tables"),
       onError: (err) => setSettingsError(err.message),
     })
+  }
+
+  const handleExportJson = () => {
+    exportTableToJson(table, sessions)
   }
 
   const handleCopyShareUrl = async () => {
@@ -398,6 +403,23 @@ export default function TablePage() {
 
               <TabsContent value="sharing" className="space-y-5 pt-4">
                 <div className="space-y-2">
+                  <Label>Export</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Download this table as JSON (members, completed sessions, and cash transfers). You can re-import it from Settings.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full"
+                    onClick={handleExportJson}
+                    disabled={sessionsLoading}
+                  >
+                    <Download className="mr-2 size-4" />
+                    Export JSON
+                  </Button>
+                </div>
+
+                <div className="space-y-2 border-t border-border/20 pt-4">
                   <Label>Share link</Label>
                   <p className="text-xs text-muted-foreground">
                     Anyone with this link can view the ledger. Logged-in users can join as view-only members.
