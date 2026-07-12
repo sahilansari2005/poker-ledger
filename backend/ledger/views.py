@@ -23,6 +23,7 @@ from .serializers import (
     AddBuyInSerializer,
     AddPlayerSerializer,
     CompleteSessionSerializer,
+    AdjustSessionSerializer,
 )
 from .settlement import compute_settlements
 
@@ -443,6 +444,93 @@ class SessionViewSet(viewsets.GenericViewSet):
                 "total_buy_in": str(total_buy_in),
                 "total_cash_out": str(total_cash_out),
                 "cash_outs": cash_out_details,
+                "settlement_count": len(settlements),
+            },
+        )
+
+        self._invalidate_session_cache(session)
+        session = self.get_queryset().get(pk=session.pk)
+        return Response(SessionDetailSerializer(session, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="adjust")
+    def adjust(self, request, pk=None):
+        """Owner-only: rewrite buy-in/cash-out on a completed session and recompute settlements."""
+        session = self.get_object()
+        if not session.is_completed:
+            return Response(
+                {"detail": "Only completed sessions can be adjusted. Finish the session first."},
+                status=400,
+            )
+
+        serializer = AdjustSessionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        updates = {row["player_id"]: row for row in serializer.validated_data["players"]}
+        allow_discrepancy = serializer.validated_data.get("allow_discrepancy", False)
+        players = list(session.players.all())
+        player_ids = {p.id for p in players}
+
+        unknown = set(updates) - player_ids
+        if unknown:
+            return Response({"detail": f"Unknown player id(s): {sorted(unknown)}."}, status=400)
+        missing = player_ids - set(updates)
+        if missing:
+            return Response(
+                {"detail": "Provide buy-in and cash-out for every player in the session."},
+                status=400,
+            )
+
+        total_buy_in = sum(updates[p.id]["total_buy_in"] for p in players)
+        total_cash_out = sum(updates[p.id]["cash_out"] for p in players)
+        discrepancy = abs(total_buy_in - total_cash_out)
+
+        if not allow_discrepancy and discrepancy > Decimal("0.01"):
+            return Response(
+                {"detail": f"Buy-in total ({total_buy_in}) does not match cash-out total ({total_cash_out})."},
+                status=400,
+            )
+
+        changes = []
+        for player in players:
+            row = updates[player.id]
+            before = {
+                "total_buy_in": str(player.total_buy_in),
+                "cash_out": str(player.cash_out) if player.cash_out is not None else None,
+            }
+            player.total_buy_in = row["total_buy_in"]
+            player.cash_out = row["cash_out"]
+            player.save()
+            after = {
+                "total_buy_in": str(player.total_buy_in),
+                "cash_out": str(player.cash_out),
+            }
+            if before != after:
+                changes.append(
+                    {
+                        "player_id": player.id,
+                        "player_name": player.name,
+                        "before": before,
+                        "after": after,
+                    }
+                )
+
+        settlements = _persist_settlements(session)
+
+        message = "Session amounts updated."
+        if discrepancy > Decimal("0.01"):
+            message = f"Session amounts updated with {discrepancy.quantize(Decimal('0.01'))} discrepancy."
+
+        log_session_audit(
+            session,
+            actor_id=str(request.user.pk),
+            action="amounts_adjusted",
+            message=message,
+            details={
+                "allow_discrepancy": allow_discrepancy,
+                "discrepancy": str(discrepancy.quantize(Decimal("0.01"))),
+                "total_buy_in": str(total_buy_in),
+                "total_cash_out": str(total_cash_out),
+                "changes": changes,
                 "settlement_count": len(settlements),
             },
         )

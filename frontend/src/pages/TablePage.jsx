@@ -36,7 +36,6 @@ import {
 } from "@/lib/queries"
 import CurrencySelect from "@/components/CurrencySelect"
 import PageHeader from "@/components/layout/PageHeader"
-import StickyActionBar from "@/components/layout/StickyActionBar"
 import Leaderboard from "@/components/table/Leaderboard"
 import SessionsList from "@/components/table/SessionsList"
 import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
@@ -186,7 +185,7 @@ export default function TablePage() {
   }
 
   return (
-    <div className={`space-y-6 ${isOwner ? "pb-28" : "pb-10"}`}>
+    <div className="space-y-6 pb-10">
       <PageHeader
         backTo="/"
         title={table.name}
@@ -201,6 +200,13 @@ export default function TablePage() {
           )
         }
       />
+
+      {isOwner && (
+        <Button size="lg" className="h-12 w-full rounded-xl" onClick={handleOpenNewSession}>
+          <Play className="mr-2 size-4 fill-current" />
+          Start Session
+        </Button>
+      )}
 
       <div className="space-y-8">
         <Leaderboard
@@ -260,7 +266,7 @@ export default function TablePage() {
             readOnly={!isOwner}
             listRef={sessionsListRef}
             showEmpty={!sessionsLoading}
-            emptyMessage={isOwner ? "No sessions yet. Start one below." : "No sessions yet."}
+            emptyMessage={isOwner ? "No sessions yet. Start one above." : "No sessions yet."}
           />
         </section>
 
@@ -302,15 +308,6 @@ export default function TablePage() {
           </Button>
         )}
       </div>
-
-      {isOwner && (
-        <StickyActionBar>
-          <Button size="lg" className="h-12 w-full rounded-xl" onClick={handleOpenNewSession}>
-            <Play className="mr-2 size-4 fill-current" />
-            Start Session
-          </Button>
-        </StickyActionBar>
-      )}
 
       <RaiseRequestDialog
         tableId={id}

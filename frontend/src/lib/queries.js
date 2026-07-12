@@ -275,6 +275,23 @@ export function useCompleteSession(sessionId) {
   })
 }
 
+export function useAdjustSession(sessionId, tableId) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ players, allowDiscrepancy = false }) =>
+      sessionsApi.adjust(sessionId, players, { allowDiscrepancy }),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.session(sessionId), updated)
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessionAuditLog(sessionId) })
+      if (tableId) {
+        queryClient.invalidateQueries({ queryKey: ["tables", tableId, "sessions"] })
+        queryClient.invalidateQueries({ queryKey: queryKeys.table(tableId) })
+      }
+    },
+  })
+}
+
 export function useDeleteSession(sessionId, tableId) {
   const queryClient = useQueryClient()
 

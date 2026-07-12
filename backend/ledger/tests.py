@@ -246,8 +246,72 @@ class SessionAPITests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.json()), 1)
 
+    def test_adjust_completed_session_updates_amounts_and_settlements(self):
+        session = Session.objects.create(table=self.table, is_completed=True)
+        winner = SessionPlayer.objects.create(
+            session=session, name="DJ", total_buy_in="20.00", cash_out="35.00"
+        )
+        loser = SessionPlayer.objects.create(
+            session=session, name="Fayyad", total_buy_in="20.00", cash_out="5.00"
+        )
+        SessionSettlement.objects.create(
+            session=session, from_player="Fayyad", to_player="DJ", amount="15.00", order=0
+        )
 
-class SettlementTests(TestCase):
+        response = self.client.post(
+            f"/api/sessions/{session.id}/adjust/",
+            {
+                "players": [
+                    {"player_id": winner.id, "total_buy_in": "25.00", "cash_out": "40.00"},
+                    {"player_id": loser.id, "total_buy_in": "25.00", "cash_out": "10.00"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        by_name = {p["name"]: p for p in payload["players"]}
+        self.assertEqual(by_name["DJ"]["total_buy_in"], "25.00")
+        self.assertEqual(by_name["DJ"]["cash_out"], "40.00")
+        self.assertEqual(by_name["Fayyad"]["total_buy_in"], "25.00")
+        self.assertEqual(by_name["Fayyad"]["cash_out"], "10.00")
+        self.assertEqual(len(payload["settlements"]), 1)
+        self.assertEqual(payload["settlements"][0]["amount"], "15.00")
+        self.assertTrue(
+            SessionAuditEntry.objects.filter(session=session, action="amounts_adjusted").exists()
+        )
+
+    def test_adjust_rejects_imbalance_without_flag(self):
+        session = Session.objects.create(table=self.table, is_completed=True)
+        p1 = SessionPlayer.objects.create(session=session, name="A", total_buy_in="20.00", cash_out="20.00")
+        p2 = SessionPlayer.objects.create(session=session, name="B", total_buy_in="20.00", cash_out="20.00")
+
+        response = self.client.post(
+            f"/api/sessions/{session.id}/adjust/",
+            {
+                "players": [
+                    {"player_id": p1.id, "total_buy_in": "20.00", "cash_out": "30.00"},
+                    {"player_id": p2.id, "total_buy_in": "20.00", "cash_out": "5.00"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_adjust_requires_completed_session(self):
+        session = Session.objects.create(table=self.table, is_completed=False)
+        player = SessionPlayer.objects.create(session=session, name="A", total_buy_in="20.00")
+
+        response = self.client.post(
+            f"/api/sessions/{session.id}/adjust/",
+            {
+                "players": [
+                    {"player_id": player.id, "total_buy_in": "25.00", "cash_out": "25.00"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     def test_compute_settlements_minimizes_transfers(self):
         class Player:
             def __init__(self, name, total_buy_in, cash_out):
@@ -774,6 +838,9 @@ class MembershipTests(TestCase):
             ("post", f"/api/sessions/{self.session.id}/buy-in/", {"player_id": self.player.id, "amount": "5.00"}),
             ("post", f"/api/sessions/{self.session.id}/add-player/", {"name": "Eve"}),
             ("post", f"/api/sessions/{self.session.id}/complete/", {"cash_outs": []}),
+            ("post", f"/api/sessions/{self.session.id}/adjust/", {
+                "players": [{"player_id": self.player.id, "total_buy_in": "10.00", "cash_out": "10.00"}],
+            }),
         ]
         for method, url, data in endpoints:
             response = getattr(self.member_client, method)(url, data, format="json")
