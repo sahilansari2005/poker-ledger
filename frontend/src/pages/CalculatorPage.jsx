@@ -65,7 +65,7 @@ export default function CalculatorPage() {
     <div className="page-stack ui-scroll-surface">
       <PageHeader
         title="Chip calculator"
-        subtitle="Enter denominations and counts to total your stack."
+        subtitle="Tap +/− to count chips and total your stack."
         action={
           <Link to="/settings" aria-label="Calculator settings">
             <Button variant="outline" size="icon">
