@@ -63,7 +63,7 @@ class TableViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        base = Table.objects.prefetch_related("members", "transfers")
+        base = Table.objects.select_related("owner").prefetch_related("members", "transfers")
         if self.action in self.OWNER_ONLY_ACTIONS:
             return base.filter(owner=user)
         return base.filter(Q(owner=user) | Q(memberships__user=user)).distinct()

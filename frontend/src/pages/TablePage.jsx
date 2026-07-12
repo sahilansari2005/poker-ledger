@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { Play, Users, Settings, Trash2, ArrowDownWideNarrow, ArrowUpWideNarrow, Copy, Check, MessageSquarePlus, LogOut, Download } from "lucide-react"
+import { Play, Users, Settings, ArrowDownWideNarrow, ArrowUpWideNarrow, MessageSquarePlus, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -15,7 +15,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatMoney } from "@/lib/currency"
 import { todayIsoDate } from "@/lib/formatDate"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
@@ -24,17 +23,9 @@ import {
   useTable,
   useTableSessions,
   useCreateSession,
-  useUpdateTable,
-  useDeleteTable,
-  useShareLink,
-  useRotateShareLink,
-  useRevokeShareLink,
-  useTableMemberships,
-  useRemoveMembership,
   useTableRequests,
   useLeaveTable,
 } from "@/lib/queries"
-import CurrencySelect from "@/components/CurrencySelect"
 import PageHeader from "@/components/layout/PageHeader"
 import PageSkeleton from "@/components/layout/PageSkeleton"
 import Leaderboard from "@/components/table/Leaderboard"
@@ -42,7 +33,6 @@ import SessionsList from "@/components/table/SessionsList"
 import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
 import RequestsList from "@/components/table/RequestsList"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
-import { exportTableToJson } from "@/lib/tableExport"
 
 export default function TablePage() {
   const { id } = useParams()
@@ -53,8 +43,6 @@ export default function TablePage() {
   const [sessionSort, setSessionSort] = useState(sessionSortOrder)
   const { data: sessions = [], isLoading: sessionsLoading } = useTableSessions(id, sessionSort)
   const createSession = useCreateSession(id)
-  const updateTable = useUpdateTable(id)
-  const deleteTable = useDeleteTable(id)
 
   const isOwner = table?.role !== "viewer"
 
@@ -66,25 +54,9 @@ export default function TablePage() {
   const [selectedMembers, setSelectedMembers] = useState([])
   const [sessionDate, setSessionDate] = useState(() => todayIsoDate())
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState("general")
-  const [editName, setEditName] = useState("")
-  const [editMembersStr, setEditMembersStr] = useState("")
-  const [editCurrency, setEditCurrency] = useState("GBP")
-  const [settingsError, setSettingsError] = useState("")
-
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false)
   const [isLeaveOpen, setIsLeaveOpen] = useState(false)
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
-
-  const shareEnabled = isOwner && isSettingsOpen
-  const { data: shareLink } = useShareLink(id, { enabled: shareEnabled })
-  const rotateShareLink = useRotateShareLink(id)
-  const revokeShareLink = useRevokeShareLink(id)
-  const { data: memberships = [] } = useTableMemberships(id, { enabled: shareEnabled })
-  const removeMembership = useRemoveMembership(id)
   const leaveTable = useLeaveTable(id)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     setSessionSort(sessionSortOrder)
@@ -95,9 +67,9 @@ export default function TablePage() {
   if (loading) return <PageSkeleton />
 
   if (!table) return (
-    <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">
-      <Card className="p-8 flex flex-col items-center bg-card/50 backdrop-blur-md border-border/50">
-        <Users className="w-12 h-12 mb-4 opacity-50" />
+    <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+      <Card className="flex flex-col items-center border-border/50 bg-card/50 p-8 backdrop-blur-md">
+        <Users className="mb-4 size-12 opacity-50" />
         <h2 className="text-section mb-2">Table not found</h2>
         <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
       </Card>
@@ -106,8 +78,6 @@ export default function TablePage() {
 
   const members = table.members || []
   const openRequestCount = requests.filter((r) => r.status === "open").length
-  const shareToken = shareLink?.share_token
-  const shareUrl = shareToken ? `${window.location.origin}/shared/${shareToken}` : null
 
   const handleOpenNewSession = () => {
     setSelectedMembers([])
@@ -116,8 +86,8 @@ export default function TablePage() {
   }
 
   const toggleMember = (name) => {
-    setSelectedMembers(prev =>
-      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    setSelectedMembers((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     )
   }
 
@@ -135,56 +105,6 @@ export default function TablePage() {
     )
   }
 
-  const openSettings = () => {
-    setEditName(table.name)
-    setEditMembersStr(members.map(m => m.name).join(", "))
-    setEditCurrency(table.currency || "GBP")
-    setSettingsError("")
-    setSettingsTab("general")
-    setIsSettingsOpen(true)
-  }
-
-  const handleSaveTable = () => {
-    setSettingsError("")
-
-    updateTable.mutate(
-      {
-        name: editName,
-        memberNames: editMembersStr.split(",").map(s => s.trim()).filter(Boolean),
-        currency: editCurrency,
-      },
-      {
-        onSuccess: () => setIsSettingsOpen(false),
-        onError: (err) => setSettingsError(err.message),
-      }
-    )
-  }
-
-  const handleDeleteTable = () => {
-    deleteTable.mutate(undefined, {
-      onSuccess: () => {
-        setIsDeleteOpen(false)
-        navigate("/tables")
-      },
-      onError: (err) => setSettingsError(err.message),
-    })
-  }
-
-  const handleExportJson = () => {
-    exportTableToJson(table, sessions)
-  }
-
-  const handleCopyShareUrl = async () => {
-    if (!shareUrl) return
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Clipboard unavailable; the URL is visible for manual copying.
-    }
-  }
-
   const toggleSessionSort = () => {
     const next = sessionSort === "desc" ? "asc" : "desc"
     setSessionSort(next)
@@ -196,10 +116,19 @@ export default function TablePage() {
       <PageHeader
         backTo="/tables"
         title={table.name}
-        subtitle={`${members.length} players`}
+        subtitle={
+          isOwner
+            ? `${members.length} players`
+            : `${members.length} players · Owned by ${table.owner_name || table.owner_email || "admin"}`
+        }
         action={
           isOwner ? (
-            <Button variant="outline" size="icon" onClick={openSettings} aria-label="Table settings">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(`/table/${id}/settings`)}
+              aria-label="Table settings"
+            >
               <Settings className="size-4" />
             </Button>
           ) : (
@@ -246,21 +175,21 @@ export default function TablePage() {
           </section>
         )}
 
-        <section className="section-stack">
-          <div className="flex items-center justify-between gap-3">
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="text-section">Sessions</h2>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 gap-1.5 text-sm"
+                className="h-11 gap-1.5 rounded-xl"
                 onClick={toggleSessionSort}
-                aria-label={sessionSort === "desc" ? "Sort oldest first" : "Sort newest first"}
+                aria-label={`Sort sessions ${sessionSort === "desc" ? "oldest first" : "newest first"}`}
               >
                 {sessionSort === "desc" ? (
-                  <ArrowDownWideNarrow className="size-3.5" />
+                  <ArrowDownWideNarrow className="size-4" />
                 ) : (
-                  <ArrowUpWideNarrow className="size-3.5" />
+                  <ArrowUpWideNarrow className="size-4" />
                 )}
                 {sessionSort === "desc" ? "Newest" : "Oldest"}
               </Button>
@@ -280,7 +209,7 @@ export default function TablePage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold">Requests</h2>
+              <h2 className="text-section">Requests</h2>
               {openRequestCount > 0 && <Badge>{openRequestCount} open</Badge>}
             </div>
             {!isOwner && (
@@ -325,17 +254,6 @@ export default function TablePage() {
         }}
       />
 
-      <ConfirmDialog
-        open={isDeleteOpen}
-        onOpenChange={setIsDeleteOpen}
-        title="Delete this table?"
-        description="This permanently deletes the table and all its sessions. There is no undo."
-        confirmLabel="Delete table"
-        destructive
-        pending={deleteTable.isPending}
-        onConfirm={handleDeleteTable}
-      />
-
       <RaiseRequestDialog
         tableId={id}
         sessions={sessions}
@@ -344,24 +262,29 @@ export default function TablePage() {
       />
 
       <ResponsiveDialog open={isStartDialogOpen} onOpenChange={setIsStartDialogOpen}>
-        <ResponsiveDialogContent className="sm:max-w-lg">
+        <ResponsiveDialogContent className="border-border/50 bg-card/80 backdrop-blur-xl sm:max-w-lg">
           <ResponsiveDialogHeader className="pb-2">
             <ResponsiveDialogTitle>Who&apos;s at the table?</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>Select the players participating in this session.</ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogBody className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              {members.map(m => {
+              {members.map((m) => {
                 const isSelected = selectedMembers.includes(m.name)
                 return (
-                  <Badge key={m.id} variant={isSelected ? "default" : "outline"}
+                  <Badge
+                    key={m.id}
+                    variant={isSelected ? "default" : "outline"}
                     className="cursor-pointer px-4 py-2 transition-all active:scale-[0.98]"
-                    onClick={() => toggleMember(m.name)}>
+                    onClick={() => toggleMember(m.name)}
+                  >
                     {m.name}
                   </Badge>
                 )
               })}
-              {members.length === 0 && <p className="text-sm text-muted-foreground italic">No members. Edit the table first.</p>}
+              {members.length === 0 && (
+                <p className="text-sm italic text-muted-foreground">No members. Edit the table first.</p>
+              )}
             </div>
             <div className="space-y-2 border-t border-border/20 pt-4">
               <Label htmlFor="new-session-date">Session date</Label>
@@ -370,169 +293,21 @@ export default function TablePage() {
                 type="date"
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
-                className="bg-card"
+                className="h-11 bg-card"
               />
             </div>
           </ResponsiveDialogBody>
           <ResponsiveDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-            <span className="text-center text-sm text-muted-foreground sm:text-left">{selectedMembers.length} selected</span>
+            <span className="text-center text-sm text-muted-foreground sm:text-left">
+              {selectedMembers.length} selected
+            </span>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <Button variant="ghost" onClick={() => setIsStartDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleStartSession} disabled={selectedMembers.length === 0 || createSession.isPending}>
-                <Play className="w-4 h-4 mr-2" /> {createSession.isPending ? "Starting…" : "Start Game"}
+                <Play className="mr-2 size-4" /> {createSession.isPending ? "Starting…" : "Start Game"}
               </Button>
             </div>
           </ResponsiveDialogFooter>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
-
-      <ResponsiveDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-        <ResponsiveDialogContent className="sm:max-w-lg">
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Table settings</ResponsiveDialogTitle>
-          </ResponsiveDialogHeader>
-          <Tabs value={settingsTab} onValueChange={setSettingsTab} className="flex min-h-0 flex-1 flex-col">
-            <TabsList className="w-full shrink-0">
-              <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
-              <TabsTrigger value="sharing" className="flex-1">Sharing</TabsTrigger>
-              <TabsTrigger value="danger" className="flex-1 text-destructive">Danger</TabsTrigger>
-            </TabsList>
-
-            <ResponsiveDialogBody>
-              <TabsContent value="general" className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label>Table Name</Label>
-                  <Input value={editName} onChange={e => setEditName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="table-currency">Currency</Label>
-                  <CurrencySelect
-                    id="table-currency"
-                    value={editCurrency}
-                    onChange={setEditCurrency}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Members (comma separated)</Label>
-                  <Input value={editMembersStr} onChange={e => setEditMembersStr(e.target.value)} placeholder="John, Jane, Daniel" />
-                </div>
-                {settingsError && <p className="text-sm text-destructive">{settingsError}</p>}
-              </TabsContent>
-
-              <TabsContent value="sharing" className="space-y-5 pt-4">
-                <div className="space-y-2">
-                  <Label>Export</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Download this table as JSON (members, completed sessions, and cash transfers). You can re-import it from Settings.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 w-full"
-                    onClick={handleExportJson}
-                    disabled={sessionsLoading}
-                  >
-                    <Download className="mr-2 size-4" />
-                    Export JSON
-                  </Button>
-                </div>
-
-                <div className="space-y-2 border-t border-border/20 pt-4">
-                  <Label>Share link</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Anyone with this link can view the ledger. Logged-in users can join as view-only members.
-                  </p>
-                  {shareUrl ? (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <Input readOnly value={shareUrl} className="h-11 bg-background/50 text-xs" onFocus={(e) => e.target.select()} />
-                        <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={handleCopyShareUrl} aria-label="Copy share link">
-                          {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
-                        </Button>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => rotateShareLink.mutate()}
-                          disabled={rotateShareLink.isPending}
-                        >
-                          Regenerate link
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => revokeShareLink.mutate()}
-                          disabled={revokeShareLink.isPending}
-                        >
-                          Disable sharing
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Regenerating invalidates the old link. Existing members keep their access.
-                      </p>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={() => rotateShareLink.mutate()}
-                      disabled={rotateShareLink.isPending}
-                      className="w-full"
-                    >
-                      {rotateShareLink.isPending ? "Generating…" : "Generate share link"}
-                    </Button>
-                  )}
-                </div>
-
-                <div className="space-y-2 border-t border-border/20 pt-4">
-                  <Label>Members with access</Label>
-                  {memberships.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No one has joined via the link yet.</p>
-                  ) : (
-                    <div className="divide-y divide-border/30 rounded-xl border border-border/40">
-                      {memberships.map((membership) => (
-                        <div key={membership.id} className="flex items-center justify-between gap-2 p-3 text-sm">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{membership.user_email}</p>
-                            <p className="text-xs capitalize text-muted-foreground">{membership.role}</p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="shrink-0 text-destructive"
-                            onClick={() => removeMembership.mutate(membership.id)}
-                            disabled={removeMembership.isPending}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="danger" className="pt-4">
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-4">
-                  <p className="text-section text-destructive">Delete table</p>
-                  <p className="text-caption">This permanently deletes the table and all its sessions. There is no undo.</p>
-                  <Button variant="destructive" className="w-full" onClick={() => setIsDeleteOpen(true)} disabled={deleteTable.isPending}>
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete Table
-                  </Button>
-                </div>
-              </TabsContent>
-            </ResponsiveDialogBody>
-          </Tabs>
-          {settingsTab === "general" && (
-            <ResponsiveDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button variant="ghost" className="w-full sm:w-auto" onClick={() => setIsSettingsOpen(false)}>
-                Cancel
-              </Button>
-              <Button className="w-full sm:w-auto" onClick={handleSaveTable} disabled={updateTable.isPending}>
-                {updateTable.isPending ? "Saving…" : "Save Changes"}
-              </Button>
-            </ResponsiveDialogFooter>
-          )}
         </ResponsiveDialogContent>
       </ResponsiveDialog>
     </div>

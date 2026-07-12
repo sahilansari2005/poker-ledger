@@ -136,7 +136,11 @@ export default function LoginPage() {
         >
           <SpotlightCard className="bg-card/70 p-5 backdrop-blur-md sm:p-6">
             {loading ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+              <div className="space-y-3 py-4 animate-pulse" aria-busy="true" aria-label="Loading">
+                <div className="h-3 w-1/3 rounded-full bg-muted" />
+                <div className="h-11 rounded-xl bg-muted/70" />
+                <div className="h-11 rounded-xl bg-muted/50" />
+              </div>
             ) : (
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-2">

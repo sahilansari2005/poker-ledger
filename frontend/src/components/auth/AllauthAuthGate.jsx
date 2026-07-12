@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { isAuthenticatedSession } from "@/lib/allauth"
+import AppLoadingScreen from "@/components/layout/AppLoadingScreen"
 import { queryClient } from "@/lib/queryClient"
 import { queryKeys, useAuthSession } from "@/lib/queries"
 
@@ -20,11 +21,7 @@ export default function AllauthAuthGate() {
   }, [authenticated])
 
   if (isPending) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-background text-muted-foreground">
-        Loading…
-      </div>
-    )
+    return <AppLoadingScreen label="Signing in" />
   }
 
   if (!authenticated) {

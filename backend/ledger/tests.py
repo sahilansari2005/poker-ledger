@@ -18,6 +18,7 @@ from ledger.models import (
     TableTransfer,
 )
 from ledger.settlement import compute_settlements
+from ledger.serializers import _user_display_name
 
 
 def auth_client(username="alice", email=None):
@@ -75,8 +76,46 @@ class TableAPITests(TestCase):
         payload = response.json()
         self.assertEqual(payload["name"], "Friday Night")
         self.assertEqual(payload["owner_id"], self.user.pk)
+        self.assertEqual(payload["owner_email"], self.user.email)
+        self.assertEqual(payload["owner_name"], self.user.email)
+        self.assertEqual(payload["role"], "owner")
         self.assertEqual(len(payload["members"]), 2)
         self.assertTrue(Table.objects.filter(name="Friday Night", owner=self.user).exists())
+
+    def test_owner_name_prefers_full_name_over_email(self):
+        self.user.first_name = "Ada"
+        self.user.last_name = "Lovelace"
+        self.user.save(update_fields=["first_name", "last_name"])
+        table = Table.objects.create(name="Named Owner", default_buy_in="0", owner=self.user)
+
+        response = self.client.get(f"/api/tables/{table.id}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["owner_name"], "Ada Lovelace")
+        self.assertEqual(payload["owner_email"], self.user.email)
+
+    def test_owner_fields_are_read_only_on_update(self):
+        table = Table.objects.create(name="Immutable Owner", default_buy_in="0", owner=self.user)
+        response = self.client.put(
+            f"/api/tables/{table.id}/",
+            {
+                "name": "Still Mine",
+                "member_names": ["Alice"],
+                "currency": "GBP",
+                "owner_name": "Hacker",
+                "owner_email": "hacker@evil.test",
+                "owner_id": User.objects.get(username="bob").pk,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["name"], "Still Mine")
+        self.assertEqual(payload["owner_id"], self.user.pk)
+        self.assertEqual(payload["owner_email"], self.user.email)
+        self.assertEqual(payload["owner_name"], self.user.email)
+        table.refresh_from_db()
+        self.assertEqual(table.owner_id, self.user.pk)
 
     def test_create_table_invalidates_cached_list(self):
         empty = self.client.get("/api/tables/")
@@ -105,6 +144,21 @@ class TableAPITests(TestCase):
         table = Table.objects.create(name="Private", default_buy_in="10.00", owner=bob)
         response = self.client.get(f"/api/tables/{table.id}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class OwnerDisplayNameTests(TestCase):
+    def test_display_name_helpers(self):
+        self.assertIsNone(_user_display_name(None))
+
+        user = User(username="only_user", email="", first_name="", last_name="")
+        self.assertEqual(_user_display_name(user), "only_user")
+
+        user.email = "named@test.com"
+        self.assertEqual(_user_display_name(user), "named@test.com")
+
+        user.first_name = "Ada"
+        user.last_name = "Lovelace"
+        self.assertEqual(_user_display_name(user), "Ada Lovelace")
 
 
 @override_settings(
@@ -695,7 +749,9 @@ class ShareLinkTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         payload = response.json()
         self.assertEqual(payload["table"]["name"], "Shared Table")
+        self.assertEqual(payload["table"]["owner_name"], self.owner.email)
         self.assertNotIn("owner_id", payload["table"])
+        self.assertNotIn("owner_email", payload["table"])
         self.assertNotIn("share_token", payload["table"])
         self.assertEqual(len(payload["sessions"]), 1)
         self.assertFalse(payload["sessions"][0]["can_edit"])
@@ -703,6 +759,16 @@ class ShareLinkTests(TestCase):
             payload["viewer"],
             {"is_authenticated": False, "is_owner": False, "is_member": False},
         )
+
+    def test_shared_owner_name_uses_full_name(self):
+        self.owner.first_name = "Grace"
+        self.owner.last_name = "Hopper"
+        self.owner.save(update_fields=["first_name", "last_name"])
+        token = self._enable_sharing()
+        response = APIClient().get(f"/api/shared/{token}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()["table"]["owner_name"], "Grace Hopper")
+        self.assertNotIn("owner_email", response.json()["table"])
 
     def test_bad_token_404(self):
         self._enable_sharing()
@@ -791,10 +857,28 @@ class MembershipTests(TestCase):
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["id"], self.table.id)
         self.assertEqual(payload[0]["role"], "viewer")
+        self.assertEqual(payload[0]["owner_email"], self.owner.email)
+        self.assertEqual(payload[0]["owner_name"], self.owner.email)
+
+    def test_member_retrieve_includes_owner_display_fields(self):
+        self.owner.first_name = "Alan"
+        self.owner.last_name = "Turing"
+        self.owner.save(update_fields=["first_name", "last_name"])
+        self._join()
+        response = self.member_client.get(f"/api/tables/{self.table.id}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.json()
+        self.assertEqual(payload["role"], "viewer")
+        self.assertEqual(payload["owner_name"], "Alan Turing")
+        self.assertEqual(payload["owner_email"], self.owner.email)
+        self.assertEqual(payload["owner_id"], self.owner.pk)
 
     def test_owner_sees_owner_role(self):
         response = self.owner_client.get("/api/tables/")
-        self.assertEqual(response.json()[0]["role"], "owner")
+        payload = response.json()[0]
+        self.assertEqual(payload["role"], "owner")
+        self.assertEqual(payload["owner_email"], self.owner.email)
+        self.assertEqual(payload["owner_name"], self.owner.email)
 
     def test_member_can_read_table_sessions_and_audit_log(self):
         self._join()

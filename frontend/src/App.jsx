@@ -3,6 +3,7 @@ import MobileShell from "./components/layout/MobileShell"
 import AllauthAuthGate from "./components/auth/AllauthAuthGate"
 import Dashboard from "./pages/Dashboard"
 import TablePage from "./pages/TablePage"
+import TableSettingsPage from "./pages/TableSettingsPage"
 import SessionPage from "./pages/SessionPage"
 import SummaryPage from "./pages/SummaryPage"
 import LearnPage from "./pages/LearnPage"
@@ -22,6 +23,7 @@ function App() {
         <Route element={<AllauthAuthGate />}>
           <Route element={<MobileShell />}>
             <Route path="/tables" element={<Dashboard />} />
+            <Route path="/table/:id/settings" element={<TableSettingsPage />} />
             <Route path="/table/:id" element={<TablePage />} />
             <Route path="/session/:id" element={<SessionPage />} />
             <Route path="/summary/:id" element={<SummaryPage />} />
