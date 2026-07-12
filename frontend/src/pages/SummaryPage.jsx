@@ -18,6 +18,7 @@ import { formatMoney, getCurrencySymbol } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useSession, useAdjustSession } from "@/lib/queries"
 import PageHeader from "@/components/layout/PageHeader"
+import PageSkeleton from "@/components/layout/PageSkeleton"
 import SessionDateEdit from "@/components/session/SessionDateEdit"
 import SessionSettlement from "@/components/session/SessionSettlement"
 import SessionAuditLog from "@/components/session/SessionAuditLog"
@@ -50,7 +51,7 @@ export default function SummaryPage() {
     setDraft(draftFromPlayers(session.players))
   }, [session?.players, isEditing])
 
-  if (isLoading && !session) return null
+  if (isLoading && !session) return <PageSkeleton />
 
   if (!session) return (
     <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
@@ -154,7 +155,7 @@ export default function SummaryPage() {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack pb-safe">
       <PageHeader
         backTo={`/table/${session.table}`}
         title="Session summary"
@@ -168,8 +169,8 @@ export default function SummaryPage() {
         }
         action={
           canEdit && !isEditing ? (
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg" onClick={startEditing}>
-              <Pencil className="size-3.5" />
+            <Button variant="outline" className="h-11 min-h-11 gap-1.5 rounded-xl" onClick={startEditing}>
+              <Pencil className="size-4" />
               Edit amounts
             </Button>
           ) : null

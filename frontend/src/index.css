@@ -160,14 +160,16 @@
     padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
   .pb-flow {
-    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom));
+    /* Clearance for StickyActionBar (button row + padding + home indicator). */
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
   .touch-manipulation {
     touch-action: manipulation;
   }
 
   .ui-scroll-surface {
-    contain: layout style;
+    /* Avoid `contain: layout` — it makes position:fixed stick to this box instead of the viewport. */
+    contain: style;
   }
 
   .page-stack {
@@ -266,7 +268,7 @@
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: none;
     }
   }
 
@@ -277,7 +279,8 @@
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      /* `none` (not translateY(0)) so we don't leave a transform containing block for position:fixed. */
+      transform: none;
     }
   }
 

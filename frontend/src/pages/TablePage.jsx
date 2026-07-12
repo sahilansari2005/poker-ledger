@@ -36,10 +36,12 @@ import {
 } from "@/lib/queries"
 import CurrencySelect from "@/components/CurrencySelect"
 import PageHeader from "@/components/layout/PageHeader"
+import PageSkeleton from "@/components/layout/PageSkeleton"
 import Leaderboard from "@/components/table/Leaderboard"
 import SessionsList from "@/components/table/SessionsList"
 import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
 import RequestsList from "@/components/table/RequestsList"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import { exportTableToJson } from "@/lib/tableExport"
 
 export default function TablePage() {
@@ -72,6 +74,8 @@ export default function TablePage() {
   const [settingsError, setSettingsError] = useState("")
 
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false)
+  const [isLeaveOpen, setIsLeaveOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   const shareEnabled = isOwner && isSettingsOpen
   const { data: shareLink } = useShareLink(id, { enabled: shareEnabled })
@@ -88,7 +92,7 @@ export default function TablePage() {
 
   const loading = tableLoading && !table
 
-  if (loading) return null
+  if (loading) return <PageSkeleton />
 
   if (!table) return (
     <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">
@@ -157,10 +161,11 @@ export default function TablePage() {
   }
 
   const handleDeleteTable = () => {
-    if (!window.confirm("Delete this table and all its sessions? This cannot be undone.")) return
-
     deleteTable.mutate(undefined, {
-      onSuccess: () => navigate("/tables"),
+      onSuccess: () => {
+        setIsDeleteOpen(false)
+        navigate("/tables")
+      },
       onError: (err) => setSettingsError(err.message),
     })
   }
@@ -187,7 +192,7 @@ export default function TablePage() {
   }
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="page-stack pb-safe">
       <PageHeader
         backTo="/tables"
         title={table.name}
@@ -281,11 +286,10 @@ export default function TablePage() {
             {!isOwner && (
               <Button
                 variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 rounded-lg text-xs"
+                className="h-11 min-h-11 gap-1.5 rounded-xl"
                 onClick={() => setIsRequestDialogOpen(true)}
               >
-                <MessageSquarePlus className="size-3.5" />
+                <MessageSquarePlus className="size-4" />
                 Raise a request
               </Button>
             )}
@@ -298,18 +302,39 @@ export default function TablePage() {
             variant="outline"
             className="h-11 w-full rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
             disabled={leaveTable.isPending}
-            onClick={() => {
-              if (!window.confirm("Leave this table? You will lose viewer access until you join again via the share link.")) return
-              leaveTable.mutate(undefined, {
-                onSuccess: () => navigate("/", { replace: true }),
-              })
-            }}
+            onClick={() => setIsLeaveOpen(true)}
           >
             <LogOut className="mr-2 size-4" />
             {leaveTable.isPending ? "Leaving…" : "Leave table"}
           </Button>
         )}
       </div>
+
+      <ConfirmDialog
+        open={isLeaveOpen}
+        onOpenChange={setIsLeaveOpen}
+        title="Leave this table?"
+        description="You will lose viewer access until you join again via the share link."
+        confirmLabel="Leave table"
+        destructive
+        pending={leaveTable.isPending}
+        onConfirm={() => {
+          leaveTable.mutate(undefined, {
+            onSuccess: () => navigate("/tables", { replace: true }),
+          })
+        }}
+      />
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Delete this table?"
+        description="This permanently deletes the table and all its sessions. There is no undo."
+        confirmLabel="Delete table"
+        destructive
+        pending={deleteTable.isPending}
+        onConfirm={handleDeleteTable}
+      />
 
       <RaiseRequestDialog
         tableId={id}
@@ -491,7 +516,7 @@ export default function TablePage() {
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-4">
                   <p className="text-section text-destructive">Delete table</p>
                   <p className="text-caption">This permanently deletes the table and all its sessions. There is no undo.</p>
-                  <Button variant="destructive" className="w-full" onClick={handleDeleteTable} disabled={deleteTable.isPending}>
+                  <Button variant="destructive" className="w-full" onClick={() => setIsDeleteOpen(true)} disabled={deleteTable.isPending}>
                     <Trash2 className="w-4 h-4 mr-2" /> Delete Table
                   </Button>
                 </div>

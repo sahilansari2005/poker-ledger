@@ -13,6 +13,7 @@ import {
   ResponsiveDialogFooter,
   ResponsiveDialogDescription,
 } from "@/components/ui/responsive-dialog"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import { Label } from "@/components/ui/label"
 import BuyInField from "@/components/session/BuyInField"
 import { formatMoney, getCurrencySymbol } from "@/lib/currency"
@@ -30,8 +31,9 @@ import {
   useCompleteSession,
   useDeleteSession,
 } from "@/lib/queries"
-import { profitLossClass } from "@/lib/utils"
+import { cn, profitLossClass } from "@/lib/utils"
 import PageHeader from "@/components/layout/PageHeader"
+import PageSkeleton from "@/components/layout/PageSkeleton"
 import StickyActionBar from "@/components/layout/StickyActionBar"
 import SessionDateEdit from "@/components/session/SessionDateEdit"
 import SessionAuditLog from "@/components/session/SessionAuditLog"
@@ -56,6 +58,8 @@ export default function SessionPage() {
   const [newPlayerName, setNewPlayerName] = useState("")
   const [addPlayerError, setAddPlayerError] = useState("")
   const [isDiscrepancyDialogOpen, setIsDiscrepancyDialogOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [completeError, setCompleteError] = useState("")
 
   useEffect(() => {
     const draft = getSessionDraft(id)
@@ -75,12 +79,12 @@ export default function SessionPage() {
     setCashOutValues((prev) => mergeCashOutDraft(prev, session.players))
   }, [session?.players])
 
-  if (isLoading && !session) return null
+  if (isLoading && !session) return <PageSkeleton />
 
   if (!session) return (
-    <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">
-      <Card className="p-8 flex flex-col items-center bg-card/50 backdrop-blur-md border-border/50">
-        <AlertCircle className="w-12 h-12 mb-4 opacity-50" />
+    <div className="flex min-h-[60vh] items-center justify-center pb-safe text-muted-foreground">
+      <Card className="flex flex-col items-center border-border/50 bg-card/50 p-8 backdrop-blur-md">
+        <AlertCircle className="mb-4 size-12 opacity-50" />
         <h2 className="text-section mb-2">Session not found</h2>
         <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
       </Card>
@@ -88,6 +92,7 @@ export default function SessionPage() {
   )
 
   const canEdit = session.can_edit !== false
+  const showStickyBar = canEdit && !session.is_completed
   const currency = session.table_currency || "GBP"
   const currencySymbol = getCurrencySymbol(currency)
 
@@ -123,6 +128,7 @@ export default function SessionPage() {
   const handleStartCashOut = () => {
     setCashOutValues((prev) => mergeCashOutDraft(prev, session.players))
     setIsCashingOut(true)
+    setCompleteError("")
   }
 
   const totalBuyIn = session.players.reduce((sum, p) => sum + parseFloat(p.total_buy_in), 0)
@@ -132,6 +138,7 @@ export default function SessionPage() {
   const discrepancyAmount = Math.abs(remainingToDistribute)
 
   const handleEndSession = (allowDiscrepancy = false) => {
+    setCompleteError("")
     const cashOuts = session.players.map(p => ({
       player_id: p.id,
       cash_out: parseFloat(cashOutValues[p.id]) || 0,
@@ -145,7 +152,7 @@ export default function SessionPage() {
           setIsDiscrepancyDialogOpen(false)
           navigate(`/summary/${id}`)
         },
-        onError: (err) => alert(err.message),
+        onError: (err) => setCompleteError(err.message),
       }
     )
   }
@@ -159,17 +166,17 @@ export default function SessionPage() {
   }
 
   const handleDeleteSession = () => {
-    if (!window.confirm("Delete this session? This cannot be undone.")) return
     deleteSession.mutate(undefined, {
       onSuccess: () => {
         clearSessionDraft(id)
+        setIsDeleteOpen(false)
         navigate(`/table/${session.table}`, { replace: true })
       },
     })
   }
 
   return (
-    <div className="page-stack pb-flow">
+    <div className={cn("page-stack", showStickyBar ? "pb-flow" : "pb-safe")}>
       <PageHeader
         backTo={`/table/${session.table}`}
         title={isCashingOut ? "Cash Out" : canEdit ? "Active Session" : "Session"}
@@ -265,38 +272,24 @@ export default function SessionPage() {
                   <span className="font-medium">{p.name}</span>
                   <Badge variant="outline">In: {formatMoney(p.total_buy_in, currency)}</Badge>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-caption">Cash out</Label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-medium text-muted-foreground">{currencySymbol}</span>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="Cash out amount"
-                        value={cashOutValues[p.id] || ""}
-                        onChange={(e) => setCashOutValues((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                        className="pl-8 font-medium"
-                      />
-                    </div>
-                    {cashOutValues[p.id] !== "" && (
-                      <p className={`text-right text-sm font-medium ${profitLossClass(val - parseFloat(p.total_buy_in))}`}>
-                        Net: {val - parseFloat(p.total_buy_in) > 0 ? "+" : ""}{formatMoney(val - parseFloat(p.total_buy_in), currency)}
-                      </p>
-                    )}
+                <CardContent className="space-y-2">
+                  <Label className="text-caption">Cash out</Label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-medium text-muted-foreground">{currencySymbol}</span>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="Cash out amount"
+                      value={cashOutValues[p.id] || ""}
+                      onChange={(e) => setCashOutValues((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                      className="pl-8 font-medium"
+                    />
                   </div>
-                  <BuyInField
-                    playerId={p.id}
-                    playerName={p.name}
-                    currencySymbol={currencySymbol}
-                    value={addValues[p.id] || ""}
-                    onChange={(value) => setAddValues((prev) => ({ ...prev, [p.id]: value }))}
-                    onClear={() => clearAddValue(p.id)}
-                    onSubmit={() => handleAddSubmit(p.id)}
-                    disabled={session.is_completed}
-                    isPending={addBuyIn.isPending}
-                    compact
-                  />
+                  {cashOutValues[p.id] !== "" && (
+                    <p className={`text-right text-sm font-medium ${profitLossClass(val - parseFloat(p.total_buy_in))}`}>
+                      Net: {val - parseFloat(p.total_buy_in) > 0 ? "+" : ""}{formatMoney(val - parseFloat(p.total_buy_in), currency)}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )
@@ -304,11 +297,16 @@ export default function SessionPage() {
         </div>
       )}
 
-      {canEdit && !session.is_completed && (
+      {showStickyBar && (
         <StickyActionBar>
+          {completeError && (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+              {completeError}
+            </p>
+          )}
           {!isCashingOut ? (
             <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={handleDeleteSession} aria-label="Delete session">
+              <Button variant="outline" size="icon" onClick={() => setIsDeleteOpen(true)} aria-label="Delete session">
                 <Trash2 className="size-4" />
               </Button>
               <Button size="lg" className="flex-1" variant="destructive" onClick={handleStartCashOut}>
@@ -340,6 +338,17 @@ export default function SessionPage() {
 
       {canEdit && (
         <>
+          <ConfirmDialog
+            open={isDeleteOpen}
+            onOpenChange={setIsDeleteOpen}
+            title="Delete this session?"
+            description="This cannot be undone. Buy-ins and players for this session will be removed."
+            confirmLabel="Delete session"
+            destructive
+            pending={deleteSession.isPending}
+            onConfirm={handleDeleteSession}
+          />
+
           <ResponsiveDialog open={isDiscrepancyDialogOpen} onOpenChange={setIsDiscrepancyDialogOpen}>
             <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
               <ResponsiveDialogHeader>

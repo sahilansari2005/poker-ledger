@@ -17,13 +17,15 @@ export default function CalculatorPage() {
   const { defaultCurrency, chipDefaultValues } = useUserPreferences()
   const [rows, setRows] = useState(() => valuesToCalculatorRows(chipDefaultValues))
   const [currency, setCurrency] = useState(defaultCurrency)
+  const chipDefaultsKey = chipDefaultValues.join("|")
 
+  // Reset when entering the calculator route, or when chip defaults actually change.
   useEffect(() => {
-    if (location.pathname === "/calculator") {
-      setRows(valuesToCalculatorRows(chipDefaultValues))
-      setCurrency(defaultCurrency)
-    }
-  }, [location.pathname, chipDefaultValues, defaultCurrency])
+    if (location.pathname !== "/calculator") return
+    setRows(valuesToCalculatorRows(chipDefaultValues))
+    setCurrency(defaultCurrency)
+    // chipDefaultsKey is the content identity for chipDefaultValues.
+  }, [location.pathname, chipDefaultsKey, defaultCurrency]) // eslint-disable-line react-hooks/exhaustive-deps -- chipDefaultValues via key
 
   const currencySymbol = getCurrencySymbol(currency)
 
