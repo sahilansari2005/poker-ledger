@@ -225,6 +225,17 @@ class CompleteSessionSerializer(serializers.Serializer):
     allow_discrepancy = serializers.BooleanField(required=False, default=False)
 
 
+class AdjustPlayerSerializer(serializers.Serializer):
+    player_id = serializers.IntegerField()
+    total_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+    cash_out = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))
+
+
+class AdjustSessionSerializer(serializers.Serializer):
+    players = AdjustPlayerSerializer(many=True, min_length=1)
+    allow_discrepancy = serializers.BooleanField(required=False, default=False)
+
+
 class IngestPlayerSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     total_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"))

@@ -168,5 +168,14 @@ export const sessionsApi = {
       }),
     }),
 
+  adjust: (sessionId, players, { allowDiscrepancy = false } = {}) =>
+    request(`/sessions/${sessionId}/adjust/`, {
+      method: "POST",
+      body: JSON.stringify({
+        players,
+        allow_discrepancy: allowDiscrepancy,
+      }),
+    }),
+
   auditLog: (sessionId) => request(`/sessions/${sessionId}/audit-log/`),
 }
