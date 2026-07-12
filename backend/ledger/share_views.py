@@ -11,6 +11,7 @@ from .serializers import SessionDetailSerializer, SharedTableSerializer
 def _get_shared_table(token):
     return (
         Table.objects.filter(share_token=token)
+        .select_related("owner")
         .prefetch_related("members", "transfers")
         .first()
     )

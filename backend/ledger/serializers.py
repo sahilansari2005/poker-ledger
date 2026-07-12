@@ -19,6 +19,15 @@ ALLOWED_CURRENCIES = {
 }
 
 
+def _user_display_name(user):
+    if user is None:
+        return None
+    full = (user.get_full_name() or "").strip()
+    if full:
+        return full
+    return user.email or user.username or None
+
+
 class TableMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = TableMember
@@ -36,6 +45,8 @@ class TableSerializer(serializers.ModelSerializer):
     members = TableMemberSerializer(many=True, read_only=True)
     transfers = TableTransferSerializer(many=True, read_only=True)
     role = serializers.SerializerMethodField()
+    owner_name = serializers.SerializerMethodField()
+    owner_email = serializers.EmailField(source="owner.email", read_only=True)
     member_names = serializers.ListField(
         child=serializers.CharField(max_length=100),
         write_only=True,
@@ -46,14 +57,30 @@ class TableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Table
         # share_token must never appear here — members would see the invite link.
-        fields = ("id", "owner_id", "name", "default_buy_in", "currency", "role", "members", "transfers", "member_names", "created_at")
-        read_only_fields = ("id", "owner_id", "default_buy_in", "created_at")
+        fields = (
+            "id",
+            "owner_id",
+            "owner_name",
+            "owner_email",
+            "name",
+            "default_buy_in",
+            "currency",
+            "role",
+            "members",
+            "transfers",
+            "member_names",
+            "created_at",
+        )
+        read_only_fields = ("id", "owner_id", "owner_name", "owner_email", "default_buy_in", "created_at")
 
     def get_role(self, obj):
         request = self.context.get("request")
         if request is None or not request.user.is_authenticated:
             return None
         return "owner" if obj.owner_id == request.user.pk else "viewer"
+
+    def get_owner_name(self, obj):
+        return _user_display_name(obj.owner)
 
     def validate_currency(self, value):
         code = (value or "GBP").upper()
@@ -144,12 +171,16 @@ class SharedTableSerializer(serializers.ModelSerializer):
 
     members = TableMemberSerializer(many=True, read_only=True)
     transfers = TableTransferSerializer(many=True, read_only=True)
+    owner_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Table
         # Deliberately omits owner_id and share_token.
-        fields = ("id", "name", "default_buy_in", "currency", "members", "transfers", "created_at")
+        fields = ("id", "name", "owner_name", "default_buy_in", "currency", "members", "transfers", "created_at")
         read_only_fields = fields
+
+    def get_owner_name(self, obj):
+        return _user_display_name(obj.owner)
 
 
 class TableMembershipSerializer(serializers.ModelSerializer):

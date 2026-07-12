@@ -81,7 +81,12 @@ export default function Dashboard() {
                   <Badge variant="outline" className="shrink-0">Viewer</Badge>
                 )}
               </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                {table.role === "viewer" && (table.owner_name || table.owner_email) && (
+                  <p className="truncate">
+                    Owned by {table.owner_name || table.owner_email}
+                  </p>
+                )}
                 <span className="flex items-center gap-1.5">
                   <Users className="size-4" /> {table.members?.length || 0} players
                 </span>
