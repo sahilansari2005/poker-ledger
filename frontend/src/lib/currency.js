@@ -6,7 +6,7 @@ export const CURRENCIES = [
   { code: "EUR", symbol: "€", name: "Euro" },
   { code: "CAD", symbol: "CA$", name: "Canadian Dollar" },
   { code: "AUD", symbol: "A$", name: "Australian Dollar" },
-  { code: "AED", symbol: "د.إ", name: "UAE Dirham" },
+  { code: "AED", symbol: "AED", name: "UAE Dirham" },
   { code: "INR", symbol: "₹", name: "Indian Rupee" },
   { code: "SGD", symbol: "S$", name: "Singapore Dollar" },
   { code: "CHF", symbol: "CHF", name: "Swiss Franc" },
