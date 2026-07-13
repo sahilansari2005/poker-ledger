@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { todayIsoDate } from "@/lib/formatDate"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
+import { useSecretTaps } from "@/lib/hooks/useSecretTaps"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
 import {
   useTable,
@@ -32,6 +33,7 @@ import TransfersList from "@/components/table/TransfersList"
 import SessionsList from "@/components/table/SessionsList"
 import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
 import RequestsList from "@/components/table/RequestsList"
+import PlayerAnalytics from "@/components/table/PlayerAnalytics"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 export default function TablePage() {
@@ -56,7 +58,12 @@ export default function TablePage() {
 
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false)
   const [isLeaveOpen, setIsLeaveOpen] = useState(false)
+  const [isLabsOpen, setIsLabsOpen] = useState(false)
   const leaveTable = useLeaveTable(id)
+  const { tap: tapViewerBadge } = useSecretTaps({
+    taps: 7,
+    onUnlock: () => setIsLabsOpen(true),
+  })
 
   useEffect(() => {
     setSessionSort(sessionSortOrder)
@@ -123,7 +130,16 @@ export default function TablePage() {
               <Settings className="size-4" />
             </Button>
           ) : (
-            <Badge variant="outline">Viewer</Badge>
+            <button
+              type="button"
+              onClick={tapViewerBadge}
+              className="touch-manipulation select-none rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              aria-label="Viewer"
+            >
+              <Badge variant="outline" className="pointer-events-none">
+                Viewer
+              </Badge>
+            </button>
           )
         }
       />
@@ -230,6 +246,25 @@ export default function TablePage() {
         open={isRequestDialogOpen}
         onOpenChange={setIsRequestDialogOpen}
       />
+
+      <ResponsiveDialog open={isLabsOpen} onOpenChange={setIsLabsOpen}>
+        <ResponsiveDialogContent className="border-border/50 bg-card/80 backdrop-blur-xl sm:max-w-lg">
+          <ResponsiveDialogHeader className="pb-2">
+            <ResponsiveDialogTitle>Player stats</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription className="sr-only">
+              Per-player analytics for this table.
+            </ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <ResponsiveDialogBody>
+            <PlayerAnalytics
+              members={members}
+              sessions={sessions}
+              transfers={table.transfers || []}
+              currency={table.currency}
+            />
+          </ResponsiveDialogBody>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       <ResponsiveDialog open={isStartDialogOpen} onOpenChange={setIsStartDialogOpen}>
         <ResponsiveDialogContent className="border-border/50 bg-card/80 backdrop-blur-xl sm:max-w-lg">
