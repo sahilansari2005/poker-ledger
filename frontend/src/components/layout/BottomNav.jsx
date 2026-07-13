@@ -40,7 +40,9 @@ export default function BottomNav() {
             className={({ isActive }) =>
               cn(
                 "relative z-[2] flex min-h-[3.5rem] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-sm font-medium transition-colors duration-200 touch-manipulation",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground active:scale-[0.98]"
+                isActive
+                  ? "text-primary"
+                  : "text-foreground/65 hover:text-foreground active:scale-[0.98]"
               )
             }
           >

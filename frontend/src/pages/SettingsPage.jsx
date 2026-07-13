@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Plus, Trash2, RotateCcw } from "lucide-react"
+import { Monitor, Moon, Plus, Sun, Trash2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +11,15 @@ import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import SectionPill from "@/components/reactbits/SectionPill"
 import { FACTORY_CHIP_VALUES } from "@/lib/chipDefaults"
 import { getCurrencySymbol } from "@/lib/currency"
+import { cn } from "@/lib/utils"
+import { useTheme } from "@/contexts/ThemeContext"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
+
+const APPEARANCE_OPTIONS = [
+  { value: "system", label: "System", icon: Monitor },
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+]
 
 export default function SettingsPage() {
   const {
@@ -21,6 +29,7 @@ export default function SettingsPage() {
     isSaving,
     isReady,
   } = useUserPreferences()
+  const { theme, setTheme } = useTheme()
 
   const [values, setValues] = useState(chipDefaultValues)
   const [currency, setCurrency] = useState(defaultCurrency)
@@ -101,18 +110,50 @@ export default function SettingsPage() {
     <div className="page-stack ui-stagger">
       <PageHeader
         title="Settings"
-        subtitle="Account, imports, currency, and chip defaults."
+        subtitle="Theme, currency, chips, account, and imports."
       />
 
-      <AccountCard />
-      <DataImportCard />
+      <SpotlightCard className="ui-card-hover space-y-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Appearance</h2>
+            <p className="text-sm text-muted-foreground">
+              Match your device, or pin the app to light or dark.
+            </p>
+          </div>
+          <SectionPill text="Theme" />
+        </div>
+        <div
+          className="grid grid-cols-3 gap-2"
+          role="radiogroup"
+          aria-label="Color theme"
+        >
+          {APPEARANCE_OPTIONS.map(({ value, label, icon: Icon }) => {
+            const selected = theme === value
+            return (
+              <Button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                variant={selected ? "default" : "outline"}
+                className={cn("h-11 gap-2")}
+                onClick={() => setTheme(value)}
+              >
+                <Icon className="size-4" />
+                {label}
+              </Button>
+            )
+          })}
+        </div>
+      </SpotlightCard>
 
       <SpotlightCard className="ui-card-hover space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-base font-semibold">Default currency</h2>
             <p className="text-sm text-muted-foreground">
-              Used for the chip calculator and as the default when you create a new table.
+              Used for the chip calculator and as the default when you create a table.
             </p>
           </div>
           <SectionPill text="Currency" />
@@ -192,6 +233,10 @@ export default function SettingsPage() {
           </div>
         </div>
       </SpotlightCard>
+
+      <AccountCard />
+
+      <DataImportCard />
     </div>
   )
 }

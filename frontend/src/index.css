@@ -36,65 +36,69 @@
 }
 
 :root {
-  --background: oklch(0.97 0.008 252);
-  --foreground: oklch(0.2 0.04 252);
+  /* Cooler page wash so white cards read as cards */
+  --background: oklch(0.945 0.012 252);
+  --foreground: oklch(0.18 0.04 252);
   --card: oklch(0.995 0.004 252);
   --card-foreground: oklch(0.18 0.04 252);
   --popover: oklch(0.995 0.004 252);
   --popover-foreground: oklch(0.18 0.04 252);
 
-  --primary: oklch(0.48 0.2 252);
+  --primary: oklch(0.46 0.2 252);
   --primary-foreground: oklch(0.99 0 0);
 
-  --secondary: oklch(0.94 0.018 252);
-  --secondary-foreground: oklch(0.24 0.04 252);
+  --secondary: oklch(0.91 0.024 252);
+  --secondary-foreground: oklch(0.22 0.05 252);
 
-  --muted: oklch(0.94 0.016 252);
-  --muted-foreground: oklch(0.46 0.035 252);
+  --muted: oklch(0.92 0.018 252);
+  /* ~WCAG AA on light card/background */
+  --muted-foreground: oklch(0.37 0.035 252);
 
-  --accent: oklch(0.92 0.022 252);
-  --accent-foreground: oklch(0.24 0.04 252);
+  --accent: oklch(0.9 0.026 252);
+  --accent-foreground: oklch(0.22 0.05 252);
 
-  --destructive: oklch(0.52 0.18 25);
+  --destructive: oklch(0.5 0.18 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --success: oklch(0.46 0.14 252);
+  --success: oklch(0.44 0.14 252);
 
-  --border: oklch(0.88 0.02 252);
-  --input: oklch(0.92 0.018 252);
-  --ring: oklch(0.48 0.2 252);
+  --border: oklch(0.84 0.022 252);
+  --input: oklch(0.9 0.02 252);
+  --ring: oklch(0.46 0.2 252);
 
   --radius: 0.75rem;
 }
 
 .dark {
-  --background: oklch(0.14 0.02 250);
-  --foreground: oklch(0.95 0.01 250);
-  --card: oklch(0.17 0.02 250);
+  --background: oklch(0.13 0.02 250);
+  --foreground: oklch(0.97 0.01 250);
+  --card: oklch(0.175 0.022 250);
   --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.17 0.02 250);
+  --popover: oklch(0.175 0.022 250);
   --popover-foreground: oklch(0.97 0 0);
 
-  --primary: oklch(0.68 0.14 252);
+  --primary: oklch(0.72 0.14 252);
   --primary-foreground: oklch(0.14 0.02 250);
 
-  --secondary: oklch(0.21 0.025 250);
-  --secondary-foreground: oklch(0.97 0 0);
+  /* Stronger separation from card for secondary CTAs / badges */
+  --secondary: oklch(0.26 0.03 250);
+  --secondary-foreground: oklch(0.96 0.01 250);
 
-  --muted: oklch(0.21 0.025 250);
-  --muted-foreground: oklch(0.62 0.03 250);
+  --muted: oklch(0.22 0.025 250);
+  /* Brighter captions / inactive nav */
+  --muted-foreground: oklch(0.74 0.025 250);
 
-  --accent: oklch(0.24 0.03 250);
+  --accent: oklch(0.26 0.03 250);
   --accent-foreground: oklch(0.97 0 0);
 
-  --destructive: oklch(0.55 0.16 25);
+  --destructive: oklch(0.58 0.16 25);
   --destructive-foreground: oklch(0.97 0 0);
 
-  --success: oklch(0.72 0.12 252);
+  --success: oklch(0.74 0.12 252);
 
-  --border: oklch(0.26 0.025 250);
-  --input: oklch(0.24 0.025 250);
-  --ring: oklch(0.68 0.14 252);
+  --border: oklch(0.3 0.028 250);
+  --input: oklch(0.26 0.028 250);
+  --ring: oklch(0.72 0.14 252);
 }
 
 @layer base {
@@ -131,7 +135,7 @@
   }
 
   .text-caption {
-    @apply text-sm text-muted-foreground;
+    @apply text-sm font-medium text-muted-foreground;
   }
 
   .text-profit {
@@ -231,9 +235,9 @@
     border-radius: var(--radius);
     backdrop-filter: blur(24px) saturate(160%);
     -webkit-backdrop-filter: blur(24px) saturate(160%);
-    background: oklch(0.995 0.004 252 / 0.88);
-    border: 1px solid oklch(0.88 0.02 252 / 0.8);
-    box-shadow: 0 12px 40px oklch(0.48 0.2 252 / 0.1);
+    background: oklch(0.995 0.004 252 / 0.94);
+    border: 1px solid oklch(0.84 0.022 252 / 0.9);
+    box-shadow: 0 12px 40px oklch(0.46 0.2 252 / 0.12);
     transition: box-shadow 0.3s ease;
   }
 
@@ -245,20 +249,20 @@
     z-index: 1;
     width: calc((100% - 0.75rem) / var(--dock-tabs, 4));
     border-radius: calc(var(--radius) - 2px);
-    background: oklch(0.48 0.2 252 / 0.12);
+    background: oklch(0.46 0.2 252 / 0.14);
     transform: translateX(calc(var(--dock-active, 0) * 100%));
     transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
   }
 
   .dark .dock-glass {
-    background: oklch(0.17 0.02 250 / 0.92);
-    border-color: oklch(0.26 0.025 250 / 0.9);
-    box-shadow: 0 12px 40px oklch(0 0 0 / 0.28);
+    background: oklch(0.175 0.022 250 / 0.95);
+    border-color: oklch(0.3 0.028 250 / 0.95);
+    box-shadow: 0 12px 40px oklch(0 0 0 / 0.32);
   }
 
   .dark .dock-indicator {
-    background: oklch(0.68 0.14 252 / 0.18);
+    background: oklch(0.72 0.14 252 / 0.22);
   }
 
   @keyframes dock-enter {

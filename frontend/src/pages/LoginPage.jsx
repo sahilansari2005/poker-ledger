@@ -95,7 +95,7 @@ export default function LoginPage() {
     : "Create an account to start tracking sessions."
 
   return (
-    <div className="dark relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-background text-foreground">
+    <div className="relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-background text-foreground">
       <AuroraBackdrop reduce={reduce} />
 
       <div className="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 overflow-y-auto px-5 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">

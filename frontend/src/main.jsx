@@ -2,6 +2,7 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { QueryClientProvider } from "@tanstack/react-query"
 import App from "./App"
+import { ThemeProvider } from "./contexts/ThemeContext"
 import { UserPreferencesProvider } from "./contexts/UserPreferencesContext"
 import { queryClient } from "./lib/queryClient"
 import "./index.css"
@@ -15,9 +16,11 @@ if (import.meta.env.PROD) {
 function Root() {
   return (
     <QueryClientProvider client={queryClient}>
-      <UserPreferencesProvider>
-        <App />
-      </UserPreferencesProvider>
+      <ThemeProvider>
+        <UserPreferencesProvider>
+          <App />
+        </UserPreferencesProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }

@@ -53,7 +53,11 @@ export default function PageHeader({
           ) : (
             <h1 className="text-title">{title}</h1>
           )}
-          {subtitle && <div className="text-caption">{subtitle}</div>}
+          {subtitle && (
+            <div className="relative text-sm font-medium leading-relaxed text-muted-foreground">
+              {subtitle}
+            </div>
+          )}
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>

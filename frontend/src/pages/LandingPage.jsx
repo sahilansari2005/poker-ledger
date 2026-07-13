@@ -188,7 +188,7 @@ export default function LandingPage() {
   const isAuthed = ready && authed
 
   return (
-    <div className="dark relative flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <AuroraBackdrop reduce={reduce} />
       <LandingNav authed={isAuthed} />
       <main className="relative z-10 flex min-h-0 flex-1 flex-col">
