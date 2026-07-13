@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Play, Users, Settings, ArrowDownWideNarrow, ArrowUpWideNarrow, MessageSquarePlus, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   ResponsiveDialog,
   ResponsiveDialogContent,
@@ -15,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { formatMoney } from "@/lib/currency"
 import { todayIsoDate } from "@/lib/formatDate"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
@@ -26,9 +24,11 @@ import {
   useTableRequests,
   useLeaveTable,
 } from "@/lib/queries"
+import NotFoundState from "@/components/layout/NotFoundState"
 import PageHeader from "@/components/layout/PageHeader"
 import PageSkeleton from "@/components/layout/PageSkeleton"
 import Leaderboard from "@/components/table/Leaderboard"
+import TransfersList from "@/components/table/TransfersList"
 import SessionsList from "@/components/table/SessionsList"
 import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
 import RequestsList from "@/components/table/RequestsList"
@@ -65,16 +65,7 @@ export default function TablePage() {
   const loading = tableLoading && !table
 
   if (loading) return <PageSkeleton />
-
-  if (!table) return (
-    <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
-      <Card className="flex flex-col items-center border-border/50 bg-card/50 p-8 backdrop-blur-md">
-        <Users className="mb-4 size-12 opacity-50" />
-        <h2 className="text-section mb-2">Table not found</h2>
-        <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
-      </Card>
-    </div>
-  )
+  if (!table) return <NotFoundState title="Table not found" icon={Users} />
 
   const members = table.members || []
   const openRequestCount = requests.filter((r) => r.status === "open").length
@@ -152,28 +143,7 @@ export default function TablePage() {
           currency={table.currency}
         />
 
-        {(table.transfers || []).length > 0 && (
-          <section className="section-stack">
-            <div className="flex items-center justify-between">
-              <h2 className="text-section">Cash transfers</h2>
-              <Badge variant="outline" className="text-xs">Off-table</Badge>
-            </div>
-            <Card>
-              <CardContent className="divide-y divide-border/40 p-0">
-                {table.transfers.map((transfer) => (
-                  <div key={transfer.id} className="flex items-center justify-between gap-4 p-5 text-base">
-                    <p>
-                      <span className="font-medium">{transfer.from_player}</span>
-                      <span className="text-muted-foreground"> paid </span>
-                      <span className="font-medium">{transfer.to_player}</span>
-                    </p>
-                    <Badge variant="secondary">{formatMoney(transfer.amount, table.currency)}</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </section>
-        )}
+        <TransfersList transfers={table.transfers || []} currency={table.currency} />
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">

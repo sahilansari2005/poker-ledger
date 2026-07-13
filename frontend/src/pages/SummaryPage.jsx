@@ -1,38 +1,32 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { CheckCircle2, AlertCircle, Pencil } from "lucide-react"
+import { CheckCircle2, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  ResponsiveDialog,
-  ResponsiveDialogContent,
-  ResponsiveDialogHeader,
-  ResponsiveDialogTitle,
-  ResponsiveDialogFooter,
-  ResponsiveDialogDescription,
-} from "@/components/ui/responsive-dialog"
+import DiscrepancyDialog from "@/components/session/DiscrepancyDialog"
 import { formatMoney, getCurrencySymbol } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useSession, useAdjustSession } from "@/lib/queries"
+import {
+  buildAdjustPayload,
+  draftFromPlayers,
+  playerNet,
+  sortPlayersByProfit,
+  toAmount,
+  validateAdjustDraft,
+  balanceFromTotals,
+  computeTotals,
+} from "@/lib/sessionBalance"
+import { profitLossClass } from "@/lib/utils"
+import NotFoundState from "@/components/layout/NotFoundState"
 import PageHeader from "@/components/layout/PageHeader"
 import PageSkeleton from "@/components/layout/PageSkeleton"
 import SessionDateEdit from "@/components/session/SessionDateEdit"
 import SessionSettlement from "@/components/session/SessionSettlement"
 import SessionAuditLog from "@/components/session/SessionAuditLog"
-
-function draftFromPlayers(players) {
-  const draft = {}
-  for (const p of players || []) {
-    draft[p.id] = {
-      buyIn: p.total_buy_in != null ? String(p.total_buy_in) : "",
-      cashOut: p.cash_out != null ? String(p.cash_out) : "",
-    }
-  }
-  return draft
-}
 
 export default function SummaryPage() {
   const { id } = useParams()
@@ -52,31 +46,20 @@ export default function SummaryPage() {
   }, [session?.players, isEditing])
 
   if (isLoading && !session) return <PageSkeleton />
-
-  if (!session) return (
-    <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
-      <Card className="flex flex-col items-center p-8">
-        <AlertCircle className="mb-4 size-12 opacity-50" />
-        <h2 className="text-section mb-2">Summary not found</h2>
-        <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
-      </Card>
-    </div>
-  )
+  if (!session) return <NotFoundState title="Summary not found" />
 
   const canEdit = session.can_edit !== false
   const players = session.players || []
   const currency = session.table_currency || "GBP"
   const currencySymbol = getCurrencySymbol(currency)
-  const totalPot = players.reduce((sum, p) => sum + parseFloat(p.total_buy_in), 0)
+  const totalPot = players.reduce((sum, p) => sum + toAmount(p.total_buy_in), 0)
 
-  const sortedPlayers = [...players].sort((a, b) => {
-    const profitA = (parseFloat(a.cash_out) || 0) - parseFloat(a.total_buy_in)
-    const profitB = (parseFloat(b.cash_out) || 0) - parseFloat(b.total_buy_in)
-    return profitB - profitA
-  })
-
-  const biggestWinner = sortedPlayers.length > 0 && ((parseFloat(sortedPlayers[0].cash_out) || 0) - parseFloat(sortedPlayers[0].total_buy_in)) > 0 ? sortedPlayers[0] : null
-  const biggestLoser = sortedPlayers.length > 0 && ((parseFloat(sortedPlayers[sortedPlayers.length - 1].cash_out) || 0) - parseFloat(sortedPlayers[sortedPlayers.length - 1].total_buy_in)) < 0 ? sortedPlayers[sortedPlayers.length - 1] : null
+  const sortedPlayers = sortPlayersByProfit(players)
+  const biggestWinner = sortedPlayers.length > 0 && playerNet(sortedPlayers[0]) > 0 ? sortedPlayers[0] : null
+  const biggestLoser =
+    sortedPlayers.length > 0 && playerNet(sortedPlayers[sortedPlayers.length - 1]) < 0
+      ? sortedPlayers[sortedPlayers.length - 1]
+      : null
 
   const startEditing = () => {
     setDraft(draftFromPlayers(players))
@@ -97,30 +80,17 @@ export default function SummaryPage() {
     }))
   }
 
-  const draftTotals = players.reduce(
-    (acc, p) => {
-      const row = draft[p.id] || {}
-      acc.buyIn += parseFloat(row.buyIn) || 0
-      acc.cashOut += parseFloat(row.cashOut) || 0
-      return acc
-    },
-    { buyIn: 0, cashOut: 0 },
+  const draftTotals = computeTotals(
+    players,
+    (player) => draft[player.id]?.buyIn,
+    (player) => draft[player.id]?.cashOut,
   )
-  const remaining = draftTotals.buyIn - draftTotals.cashOut
-  const isBalanced = Math.abs(remaining) < 0.01
-  const discrepancyAmount = Math.abs(remaining)
-
-  const buildPayload = () =>
-    players.map((p) => ({
-      player_id: p.id,
-      total_buy_in: parseFloat(draft[p.id]?.buyIn) || 0,
-      cash_out: parseFloat(draft[p.id]?.cashOut) || 0,
-    }))
+  const { isBalanced, discrepancyAmount } = balanceFromTotals(draftTotals.buyIn, draftTotals.cashOut)
 
   const saveAdjust = (allowDiscrepancy = false) => {
     setEditError("")
     adjustSession.mutate(
-      { players: buildPayload(), allowDiscrepancy },
+      { players: buildAdjustPayload(players, draft), allowDiscrepancy },
       {
         onSuccess: () => {
           setIsEditing(false)
@@ -135,17 +105,10 @@ export default function SummaryPage() {
   }
 
   const handleSaveClick = () => {
-    for (const p of players) {
-      const buyIn = draft[p.id]?.buyIn
-      const cashOut = draft[p.id]?.cashOut
-      if (buyIn === "" || cashOut === "" || Number.isNaN(parseFloat(buyIn)) || Number.isNaN(parseFloat(cashOut))) {
-        setEditError("Enter a buy-in and cash-out for every player.")
-        return
-      }
-      if (parseFloat(buyIn) < 0 || parseFloat(cashOut) < 0) {
-        setEditError("Amounts cannot be negative.")
-        return
-      }
+    const validationError = validateAdjustDraft(players, draft)
+    if (validationError) {
+      setEditError(validationError)
+      return
     }
     if (!isBalanced) {
       setIsDiscrepancyDialogOpen(true)
@@ -198,7 +161,7 @@ export default function SummaryPage() {
                 <>
                   <p className="text-xl font-bold truncate">{biggestWinner.name}</p>
                   <Badge className="mt-2" variant="outline">
-                    +{formatMoney((parseFloat(biggestWinner.cash_out) || 0) - parseFloat(biggestWinner.total_buy_in), currency)}
+                    +{formatMoney(playerNet(biggestWinner), currency)}
                   </Badge>
                 </>
               ) : (
@@ -216,7 +179,7 @@ export default function SummaryPage() {
                 <>
                   <p className="text-xl font-bold truncate">{biggestLoser.name}</p>
                   <Badge className="mt-2" variant="outline">
-                    {formatMoney((parseFloat(biggestLoser.cash_out) || 0) - parseFloat(biggestLoser.total_buy_in), currency)}
+                    {formatMoney(playerNet(biggestLoser), currency)}
                   </Badge>
                 </>
               ) : (
@@ -240,8 +203,8 @@ export default function SummaryPage() {
         {isEditing ? (
           <div className="space-y-3">
             {players.map((p) => {
-              const buyIn = parseFloat(draft[p.id]?.buyIn) || 0
-              const cashOut = parseFloat(draft[p.id]?.cashOut) || 0
+              const buyIn = toAmount(draft[p.id]?.buyIn)
+              const cashOut = toAmount(draft[p.id]?.cashOut)
               const net = cashOut - buyIn
               return (
                 <Card key={p.id}>
@@ -283,7 +246,7 @@ export default function SummaryPage() {
                         />
                       </div>
                     </div>
-                    <p className={`text-xs font-semibold sm:col-span-2 ${net > 0 ? "text-emerald-600" : net < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                    <p className={`text-xs font-semibold sm:col-span-2 ${profitLossClass(net)}`}>
                       Net: {net > 0 ? "+" : ""}{formatMoney(net, currency)}
                     </p>
                   </CardContent>
@@ -318,11 +281,10 @@ export default function SummaryPage() {
         ) : (
           <div ref={standingsRef} className="space-y-3">
             {sortedPlayers.map((p, i) => {
-              const cashOut = parseFloat(p.cash_out) || 0
-              const totalBuyIn = parseFloat(p.total_buy_in)
+              const cashOut = toAmount(p.cash_out)
+              const totalBuyIn = toAmount(p.total_buy_in)
               const profitLoss = cashOut - totalBuyIn
               const isPositive = profitLoss > 0
-              const isNegative = profitLoss < 0
 
               return (
                 <Card key={p.id}>
@@ -331,7 +293,7 @@ export default function SummaryPage() {
                       <span className="flex size-7 items-center justify-center rounded-full bg-secondary text-xs">{i + 1}</span>
                       {p.name}
                     </CardTitle>
-                    <Badge variant="outline" className={isPositive ? "text-emerald-600" : isNegative ? "text-destructive" : ""}>
+                    <Badge variant="outline" className={profitLossClass(profitLoss)}>
                       {isPositive ? "+" : ""}{formatMoney(profitLoss, currency)}
                     </Badge>
                   </CardHeader>
@@ -360,27 +322,21 @@ export default function SummaryPage() {
         <CheckCircle2 className="size-4" /> Back to table
       </Button>
 
-      <ResponsiveDialog open={isDiscrepancyDialogOpen} onOpenChange={setIsDiscrepancyDialogOpen}>
-        <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Amounts don&apos;t balance</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>
-              Buy-ins and cash-outs don&apos;t match. Save with{" "}
-              <span className="font-semibold text-destructive">{formatMoney(discrepancyAmount, currency)}</span> discrepancy?
-            </ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <ResponsiveDialogFooter>
-            <Button variant="ghost" onClick={() => setIsDiscrepancyDialogOpen(false)}>Go back</Button>
-            <Button
-              variant="destructive"
-              onClick={() => saveAdjust(true)}
-              disabled={adjustSession.isPending}
-            >
-              {adjustSession.isPending ? "Saving…" : "Save anyway"}
-            </Button>
-          </ResponsiveDialogFooter>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
+      <DiscrepancyDialog
+        open={isDiscrepancyDialogOpen}
+        onOpenChange={setIsDiscrepancyDialogOpen}
+        title="Amounts don't balance"
+        description={
+          <>
+            Buy-ins and cash-outs don&apos;t match. Save with{" "}
+            <span className="font-semibold text-destructive">{formatMoney(discrepancyAmount, currency)}</span> discrepancy?
+          </>
+        }
+        confirmLabel="Save anyway"
+        pendingLabel="Saving…"
+        isPending={adjustSession.isPending}
+        onConfirm={() => saveAdjust(true)}
+      />
     </div>
   )
 }

@@ -17,6 +17,14 @@ from .models import (
 ALLOWED_CURRENCIES = {
     "GBP", "USD", "EUR", "CAD", "AUD", "AED", "INR", "SGD", "CHF", "JPY", "NZD", "HKD",
 }
+DEFAULT_CURRENCY = "GBP"
+
+
+def validate_currency_code(value):
+    code = (value or DEFAULT_CURRENCY).upper()
+    if code not in ALLOWED_CURRENCIES:
+        raise serializers.ValidationError(f"Unsupported currency: {value}")
+    return code
 
 
 def _user_display_name(user):
@@ -83,10 +91,7 @@ class TableSerializer(serializers.ModelSerializer):
         return _user_display_name(obj.owner)
 
     def validate_currency(self, value):
-        code = (value or "GBP").upper()
-        if code not in ALLOWED_CURRENCIES:
-            raise serializers.ValidationError(f"Unsupported currency: {value}")
-        return code
+        return validate_currency_code(value)
 
     def create(self, validated_data):
         member_names = validated_data.pop("member_names", [])
@@ -292,10 +297,7 @@ class IngestTableSerializer(serializers.Serializer):
     transfers = IngestTransferSerializer(many=True, required=False, default=list)
 
     def validate_currency(self, value):
-        code = (value or "GBP").upper()
-        if code not in ALLOWED_CURRENCIES:
-            raise serializers.ValidationError(f"Unsupported currency: {value}")
-        return code
+        return validate_currency_code(value)
 
 
 class IngestPayloadSerializer(serializers.Serializer):
@@ -318,10 +320,7 @@ class LedgerUserSerializer(serializers.ModelSerializer):
         read_only_fields = ("user_id", "created_at", "updated_at")
 
     def validate_default_currency(self, value):
-        code = (value or "GBP").upper()
-        if code not in ALLOWED_CURRENCIES:
-            raise serializers.ValidationError(f"Unsupported currency: {value}")
-        return code
+        return validate_currency_code(value)
 
     def validate_chip_default_values(self, value):
         if not isinstance(value, list) or len(value) == 0:

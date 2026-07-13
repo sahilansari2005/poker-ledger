@@ -24,7 +24,7 @@ function useFadeUp(reduce) {
 
 function LandingNav({ authed }) {
   return (
-    <header className="relative z-10 shrink-0">
+    <header className="relative z-10 shrink-0 pt-safe">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 md:h-[4.5rem] md:px-8">
         <Link to="/" className="text-base font-semibold tracking-tight text-foreground">
           <span className="text-primary">♠</span> Poker Ledger

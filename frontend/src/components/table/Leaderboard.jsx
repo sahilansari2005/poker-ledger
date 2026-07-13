@@ -2,34 +2,8 @@ import { TrendingUp, TrendingDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatMoney } from "@/lib/currency"
-
-export function computePlayerStats(members, sessions, transfers) {
-  const stats = members.reduce((acc, m) => {
-    acc[m.name] = { totalInvested: 0, totalProfit: 0 }
-    sessions.filter(s => s.is_completed).forEach(session => {
-      const p = session.players.find(p => p.name === m.name)
-      if (p) {
-        acc[m.name].totalInvested += parseFloat(p.total_buy_in)
-        if (p.cash_out !== null) {
-          acc[m.name].totalProfit += parseFloat(p.cash_out) - parseFloat(p.total_buy_in)
-        }
-      }
-    })
-    return acc
-  }, {})
-
-  ;(transfers || []).forEach((transfer) => {
-    const amount = parseFloat(transfer.amount)
-    if (stats[transfer.from_player]) {
-      stats[transfer.from_player].totalProfit -= amount
-    }
-    if (stats[transfer.to_player]) {
-      stats[transfer.to_player].totalProfit += amount
-    }
-  })
-
-  return stats
-}
+import { computePlayerStats } from "@/lib/playerStats"
+import { profitLossClass } from "@/lib/utils"
 
 export default function Leaderboard({ members, sessions, transfers, currency }) {
   const playerStats = computePlayerStats(members, sessions, transfers)
@@ -60,7 +34,7 @@ export default function Leaderboard({ members, sessions, transfers, currency }) 
                     <p className="text-xs text-muted-foreground">{formatMoney(stats.totalInvested, currency)} invested</p>
                   </div>
                 </div>
-                <Badge variant="secondary" className={`shrink-0 ${isPositive ? "text-emerald-600" : isNegative ? "text-rose-600" : ""}`}>
+                <Badge variant="secondary" className={`shrink-0 ${profitLossClass(stats.totalProfit)}`}>
                   {isPositive && <TrendingUp className="mr-1 size-3.5" />}
                   {isNegative && <TrendingDown className="mr-1 size-3.5" />}
                   {isPositive ? "+" : ""}{formatMoney(stats.totalProfit, currency)}

@@ -1,5 +1,4 @@
 import secrets
-from decimal import Decimal
 
 from django.db.models import Q
 from django.utils import timezone
@@ -10,7 +9,7 @@ from rest_framework.response import Response
 
 from . import cache_utils as cache
 from .audit import log_session_audit
-from .models import ChangeRequest, Table, TableMembership, Session, SessionPlayer, SessionSettlement
+from .models import ChangeRequest, Table, TableMembership, Session, SessionPlayer
 from .serializers import (
     ChangeRequestSerializer,
     ResolveRequestSerializer,
@@ -25,7 +24,12 @@ from .serializers import (
     CompleteSessionSerializer,
     AdjustSessionSerializer,
 )
-from .settlement import compute_settlements
+from .settlement import (
+    discrepancy_between,
+    has_discrepancy,
+    persist_settlements,
+    quantize_money,
+)
 
 SESSION_ORDERING = set(cache.SESSION_ORDERINGS)
 
@@ -35,23 +39,11 @@ def _viewer_ids(table):
     return [table.owner_id, *table.memberships.values_list("user_id", flat=True)]
 
 
-def _persist_settlements(session):
-    players = list(session.players.all())
-    session.settlements.all().delete()
-    settlements = compute_settlements(players)
-    SessionSettlement.objects.bulk_create(
-        [
-            SessionSettlement(
-                session=session,
-                from_player=item["from_player"],
-                to_player=item["to_player"],
-                amount=item["amount"],
-                order=index,
-            )
-            for index, item in enumerate(settlements)
-        ]
+def _unbalanced_totals_response(total_buy_in, total_cash_out):
+    return Response(
+        {"detail": f"Buy-in total ({total_buy_in}) does not match cash-out total ({total_cash_out})."},
+        status=status.HTTP_400_BAD_REQUEST,
     )
-    return settlements
 
 
 class TableViewSet(viewsets.ModelViewSet):
@@ -329,7 +321,7 @@ class SessionViewSet(viewsets.GenericViewSet):
     def buy_in(self, request, pk=None):
         session = self.get_object()
         if session.is_completed:
-            return Response({"detail": "Session is already completed."}, status=400)
+            return Response({"detail": "Session is already completed."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = AddBuyInSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -337,7 +329,7 @@ class SessionViewSet(viewsets.GenericViewSet):
         try:
             player = session.players.get(id=serializer.validated_data["player_id"])
         except SessionPlayer.DoesNotExist:
-            return Response({"detail": "Player not found in this session."}, status=404)
+            return Response({"detail": "Player not found in this session."}, status=status.HTTP_404_NOT_FOUND)
 
         amount = serializer.validated_data["amount"]
         previous_total = player.total_buy_in
@@ -365,7 +357,7 @@ class SessionViewSet(viewsets.GenericViewSet):
     def add_player(self, request, pk=None):
         session = self.get_object()
         if session.is_completed:
-            return Response({"detail": "Session is already completed."}, status=400)
+            return Response({"detail": "Session is already completed."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = AddPlayerSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -390,7 +382,7 @@ class SessionViewSet(viewsets.GenericViewSet):
     def complete(self, request, pk=None):
         session = self.get_object()
         if session.is_completed:
-            return Response({"detail": "Session is already completed."}, status=400)
+            return Response({"detail": "Session is already completed."}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = CompleteSessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -401,46 +393,45 @@ class SessionViewSet(viewsets.GenericViewSet):
         players = list(session.players.all())
         total_buy_in = sum(p.total_buy_in for p in players)
         total_cash_out = sum(cash_outs.get(p.id, 0) for p in players)
-        discrepancy = abs(total_buy_in - total_cash_out)
+        discrepancy = discrepancy_between(total_buy_in, total_cash_out)
 
-        if not allow_discrepancy and discrepancy > Decimal("0.01"):
-            return Response(
-                {"detail": f"Buy-in total ({total_buy_in}) does not match cash-out total ({total_cash_out})."},
-                status=400,
-            )
+        if not allow_discrepancy and has_discrepancy(discrepancy):
+            return _unbalanced_totals_response(total_buy_in, total_cash_out)
 
         cash_out_details = []
         for player in players:
-            if player.id in cash_outs:
-                player.cash_out = cash_outs[player.id]
-                player.save()
-                cash_out_details.append(
-                    {
-                        "player_id": player.id,
-                        "player_name": player.name,
-                        "cash_out": str(player.cash_out),
-                        "total_buy_in": str(player.total_buy_in),
-                    }
-                )
+            if player.id not in cash_outs:
+                continue
+            player.cash_out = cash_outs[player.id]
+            player.save()
+            cash_out_details.append(
+                {
+                    "player_id": player.id,
+                    "player_name": player.name,
+                    "cash_out": str(player.cash_out),
+                    "total_buy_in": str(player.total_buy_in),
+                }
+            )
 
         session.is_completed = True
         session.save()
 
-        settlements = _persist_settlements(session)
-
-        action_name = "session_completed_with_discrepancy" if discrepancy > Decimal("0.01") else "session_completed"
-        message = "Session completed."
-        if discrepancy > Decimal("0.01"):
-            message = f"Session completed with {discrepancy.quantize(Decimal('0.01'))} discrepancy."
+        settlements = persist_settlements(session)
+        unbalanced = has_discrepancy(discrepancy)
+        quantized = quantize_money(discrepancy)
 
         log_session_audit(
             session,
             actor_id=str(request.user.pk),
-            action=action_name,
-            message=message,
+            action="session_completed_with_discrepancy" if unbalanced else "session_completed",
+            message=(
+                f"Session completed with {quantized} discrepancy."
+                if unbalanced
+                else "Session completed."
+            ),
             details={
                 "allow_discrepancy": allow_discrepancy,
-                "discrepancy": str(discrepancy.quantize(Decimal("0.01"))),
+                "discrepancy": str(quantized),
                 "total_buy_in": str(total_buy_in),
                 "total_cash_out": str(total_cash_out),
                 "cash_outs": cash_out_details,
@@ -459,7 +450,7 @@ class SessionViewSet(viewsets.GenericViewSet):
         if not session.is_completed:
             return Response(
                 {"detail": "Only completed sessions can be adjusted. Finish the session first."},
-                status=400,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = AdjustSessionSerializer(data=request.data)
@@ -472,23 +463,23 @@ class SessionViewSet(viewsets.GenericViewSet):
 
         unknown = set(updates) - player_ids
         if unknown:
-            return Response({"detail": f"Unknown player id(s): {sorted(unknown)}."}, status=400)
+            return Response(
+                {"detail": f"Unknown player id(s): {sorted(unknown)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         missing = player_ids - set(updates)
         if missing:
             return Response(
                 {"detail": "Provide buy-in and cash-out for every player in the session."},
-                status=400,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         total_buy_in = sum(updates[p.id]["total_buy_in"] for p in players)
         total_cash_out = sum(updates[p.id]["cash_out"] for p in players)
-        discrepancy = abs(total_buy_in - total_cash_out)
+        discrepancy = discrepancy_between(total_buy_in, total_cash_out)
 
-        if not allow_discrepancy and discrepancy > Decimal("0.01"):
-            return Response(
-                {"detail": f"Buy-in total ({total_buy_in}) does not match cash-out total ({total_cash_out})."},
-                status=400,
-            )
+        if not allow_discrepancy and has_discrepancy(discrepancy):
+            return _unbalanced_totals_response(total_buy_in, total_cash_out)
 
         changes = []
         for player in players:
@@ -504,30 +495,33 @@ class SessionViewSet(viewsets.GenericViewSet):
                 "total_buy_in": str(player.total_buy_in),
                 "cash_out": str(player.cash_out),
             }
-            if before != after:
-                changes.append(
-                    {
-                        "player_id": player.id,
-                        "player_name": player.name,
-                        "before": before,
-                        "after": after,
-                    }
-                )
+            if before == after:
+                continue
+            changes.append(
+                {
+                    "player_id": player.id,
+                    "player_name": player.name,
+                    "before": before,
+                    "after": after,
+                }
+            )
 
-        settlements = _persist_settlements(session)
-
-        message = "Session amounts updated."
-        if discrepancy > Decimal("0.01"):
-            message = f"Session amounts updated with {discrepancy.quantize(Decimal('0.01'))} discrepancy."
+        settlements = persist_settlements(session)
+        unbalanced = has_discrepancy(discrepancy)
+        quantized = quantize_money(discrepancy)
 
         log_session_audit(
             session,
             actor_id=str(request.user.pk),
             action="amounts_adjusted",
-            message=message,
+            message=(
+                f"Session amounts updated with {quantized} discrepancy."
+                if unbalanced
+                else "Session amounts updated."
+            ),
             details={
                 "allow_discrepancy": allow_discrepancy,
-                "discrepancy": str(discrepancy.quantize(Decimal("0.01"))),
+                "discrepancy": str(quantized),
                 "total_buy_in": str(total_buy_in),
                 "total_cash_out": str(total_cash_out),
                 "changes": changes,

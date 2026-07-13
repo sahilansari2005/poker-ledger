@@ -10,6 +10,7 @@ import PageSkeleton from "@/components/layout/PageSkeleton"
 import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import SectionPill from "@/components/reactbits/SectionPill"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
+import NotFoundState from "@/components/layout/NotFoundState"
 import { exportTableToJson } from "@/lib/tableExport"
 import {
   useDeleteTable,
@@ -55,19 +56,7 @@ export default function TableSettingsPage() {
   }, [table])
 
   if (tableLoading && !table) return <PageSkeleton />
-
-  if (!table) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center pb-safe text-muted-foreground">
-        <SpotlightCard className="flex w-full max-w-sm flex-col items-center p-8 text-center">
-          <h2 className="text-section mb-2">Table not found</h2>
-          <Button variant="outline" onClick={() => navigate("/tables")}>
-            Go back home
-          </Button>
-        </SpotlightCard>
-      </div>
-    )
-  }
+  if (!table) return <NotFoundState title="Table not found" />
 
   if (!isOwner) {
     return (

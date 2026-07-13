@@ -3,9 +3,14 @@ from decimal import Decimal
 from django.db import transaction
 
 from .audit import log_session_audit
-from .models import Session, SessionPlayer, SessionSettlement, Table, TableMember, TableTransfer
+from .models import Session, SessionPlayer, Table, TableMember, TableTransfer
 from .player_names import canonical_player_name
-from .settlement import compute_settlements
+from .settlement import (
+    discrepancy_between,
+    has_discrepancy,
+    persist_settlements,
+    quantize_money,
+)
 
 
 def _member_names_for_table(table_data, sessions_data):
@@ -35,33 +40,14 @@ def _players_for_session(session_data):
         if name in merged:
             merged[name]["total_buy_in"] += buy_in
             merged[name]["cash_out"] += cash_out
-        else:
-            merged[name] = {
-                "name": name,
-                "total_buy_in": buy_in,
-                "cash_out": cash_out,
-            }
-            order.append(name)
+            continue
+        merged[name] = {
+            "name": name,
+            "total_buy_in": buy_in,
+            "cash_out": cash_out,
+        }
+        order.append(name)
     return [merged[name] for name in order]
-
-
-def _persist_settlements(session):
-    players = list(session.players.all())
-    session.settlements.all().delete()
-    settlements = compute_settlements(players)
-    SessionSettlement.objects.bulk_create(
-        [
-            SessionSettlement(
-                session=session,
-                from_player=item["from_player"],
-                to_player=item["to_player"],
-                amount=item["amount"],
-                order=index,
-            )
-            for index, item in enumerate(settlements)
-        ]
-    )
-    return settlements
 
 
 def ingest_tables(user, tables_data, *, actor_id):
@@ -117,26 +103,24 @@ def ingest_tables(user, tables_data, *, actor_id):
                         )
                     )
 
-                discrepancy = abs(total_buy_in - total_cash_out)
-                settlements = _persist_settlements(session)
-
-                action = "session_imported_with_discrepancy" if discrepancy > Decimal("0.01") else "session_imported"
-                message = f"Imported session on {session.date} with {len(players)} player(s)."
-                if discrepancy > Decimal("0.01"):
-                    message = (
-                        f"Imported session on {session.date} with "
-                        f"{discrepancy.quantize(Decimal('0.01'))} discrepancy."
-                    )
+                discrepancy = discrepancy_between(total_buy_in, total_cash_out)
+                settlements = persist_settlements(session)
+                unbalanced = has_discrepancy(discrepancy)
+                quantized = quantize_money(discrepancy)
 
                 log_session_audit(
                     session,
                     actor_id=actor_id,
-                    action=action,
-                    message=message,
+                    action="session_imported_with_discrepancy" if unbalanced else "session_imported",
+                    message=(
+                        f"Imported session on {session.date} with {quantized} discrepancy."
+                        if unbalanced
+                        else f"Imported session on {session.date} with {len(players)} player(s)."
+                    ),
                     details={
                         "source": "json_import",
                         "player_count": len(players),
-                        "discrepancy": str(discrepancy.quantize(Decimal("0.01"))),
+                        "discrepancy": str(quantized),
                         "total_buy_in": str(total_buy_in),
                         "total_cash_out": str(total_cash_out),
                         "settlement_count": len(settlements),
