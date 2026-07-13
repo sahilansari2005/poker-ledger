@@ -3,7 +3,6 @@ import { useReducedMotion } from "framer-motion"
 import { Eye, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatMoney } from "@/lib/currency"
 import { useJoinTable, useSharedTable } from "@/lib/queries"
 import AppLoadingScreen from "@/components/layout/AppLoadingScreen"
 import PageHeader from "@/components/layout/PageHeader"
@@ -11,6 +10,7 @@ import AuroraBackdrop from "@/components/reactbits/AuroraBackdrop"
 import SectionPill from "@/components/reactbits/SectionPill"
 import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import Leaderboard from "@/components/table/Leaderboard"
+import TransfersList from "@/components/table/TransfersList"
 import SessionsList from "@/components/table/SessionsList"
 
 export default function SharedTablePage() {
@@ -126,33 +126,7 @@ export default function SharedTablePage() {
             currency={table.currency}
           />
 
-          {transfers.length > 0 && (
-            <section className="section-stack">
-              <div className="flex items-center justify-between">
-                <h2 className="text-section">Cash transfers</h2>
-                <Badge variant="outline" className="text-xs">Off-table</Badge>
-              </div>
-              <SpotlightCard className="overflow-hidden p-0">
-                <div className="divide-y divide-border/40">
-                  {transfers.map((transfer) => (
-                    <div
-                      key={transfer.id}
-                      className="flex items-center justify-between gap-4 px-5 py-4 text-base"
-                    >
-                      <p>
-                        <span className="font-medium">{transfer.from_player}</span>
-                        <span className="text-muted-foreground"> paid </span>
-                        <span className="font-medium">{transfer.to_player}</span>
-                      </p>
-                      <Badge variant="secondary">
-                        {formatMoney(transfer.amount, table.currency)}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </SpotlightCard>
-            </section>
-          )}
+          <TransfersList transfers={transfers} currency={table.currency} as={SpotlightCard} />
 
           <section className="section-stack">
             <div className="flex items-center justify-between">

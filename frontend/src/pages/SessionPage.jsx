@@ -16,6 +16,7 @@ import {
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import { Label } from "@/components/ui/label"
 import BuyInField from "@/components/session/BuyInField"
+import DiscrepancyDialog from "@/components/session/DiscrepancyDialog"
 import { formatMoney, getCurrencySymbol } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import {
@@ -25,6 +26,11 @@ import {
   setSessionDraft,
 } from "@/lib/sessionDraft"
 import {
+  buildCashOutPayload,
+  computeBalance,
+  toAmount,
+} from "@/lib/sessionBalance"
+import {
   useSession,
   useAddBuyIn,
   useAddPlayer,
@@ -32,6 +38,7 @@ import {
   useDeleteSession,
 } from "@/lib/queries"
 import { cn, profitLossClass } from "@/lib/utils"
+import NotFoundState from "@/components/layout/NotFoundState"
 import PageHeader from "@/components/layout/PageHeader"
 import PageSkeleton from "@/components/layout/PageSkeleton"
 import StickyActionBar from "@/components/layout/StickyActionBar"
@@ -80,16 +87,7 @@ export default function SessionPage() {
   }, [session?.players])
 
   if (isLoading && !session) return <PageSkeleton />
-
-  if (!session) return (
-    <div className="flex min-h-[60vh] items-center justify-center pb-safe text-muted-foreground">
-      <Card className="flex flex-col items-center border-border/50 bg-card/50 p-8 backdrop-blur-md">
-        <AlertCircle className="mb-4 size-12 opacity-50" />
-        <h2 className="text-section mb-2">Session not found</h2>
-        <Button variant="outline" onClick={() => navigate("/tables")}>Go back home</Button>
-      </Card>
-    </div>
-  )
+  if (!session) return <NotFoundState title="Session not found" />
 
   const canEdit = session.can_edit !== false
   const showStickyBar = canEdit && !session.is_completed
@@ -131,21 +129,26 @@ export default function SessionPage() {
     setCompleteError("")
   }
 
-  const totalBuyIn = session.players.reduce((sum, p) => sum + parseFloat(p.total_buy_in), 0)
-  const totalCashOut = session.players.reduce((sum, p) => sum + (parseFloat(cashOutValues[p.id]) || 0), 0)
-  const isBalanced = Math.abs(totalBuyIn - totalCashOut) < 0.01
-  const remainingToDistribute = totalBuyIn - totalCashOut
-  const discrepancyAmount = Math.abs(remainingToDistribute)
+  const {
+    buyIn: totalBuyIn,
+    cashOut: totalCashOut,
+    isBalanced,
+    remaining: remainingToDistribute,
+    discrepancyAmount,
+  } = computeBalance(
+    session.players,
+    (player) => player.total_buy_in,
+    (player) => cashOutValues[player.id],
+  )
 
   const handleEndSession = (allowDiscrepancy = false) => {
     setCompleteError("")
-    const cashOuts = session.players.map(p => ({
-      player_id: p.id,
-      cash_out: parseFloat(cashOutValues[p.id]) || 0,
-    }))
 
     completeSession.mutate(
-      { cashOuts, allowDiscrepancy },
+      {
+        cashOuts: buildCashOutPayload(session.players, cashOutValues),
+        allowDiscrepancy,
+      },
       {
         onSuccess: () => {
           clearSessionDraft(id)
@@ -265,7 +268,8 @@ export default function SessionPage() {
           </Card>
 
           {session.players.map((p) => {
-            const val = parseFloat(cashOutValues[p.id]) || 0
+            const val = toAmount(cashOutValues[p.id])
+            const net = val - toAmount(p.total_buy_in)
             return (
               <Card key={p.id}>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -286,8 +290,8 @@ export default function SessionPage() {
                     />
                   </div>
                   {cashOutValues[p.id] !== "" && (
-                    <p className={`text-right text-sm font-medium ${profitLossClass(val - parseFloat(p.total_buy_in))}`}>
-                      Net: {val - parseFloat(p.total_buy_in) > 0 ? "+" : ""}{formatMoney(val - parseFloat(p.total_buy_in), currency)}
+                    <p className={`text-right text-sm font-medium ${profitLossClass(net)}`}>
+                      Net: {net > 0 ? "+" : ""}{formatMoney(net, currency)}
                     </p>
                   )}
                 </CardContent>
@@ -349,37 +353,28 @@ export default function SessionPage() {
             onConfirm={handleDeleteSession}
           />
 
-          <ResponsiveDialog open={isDiscrepancyDialogOpen} onOpenChange={setIsDiscrepancyDialogOpen}>
-            <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">
-              <ResponsiveDialogHeader>
-                <ResponsiveDialogTitle>Session doesn&apos;t balance</ResponsiveDialogTitle>
-                <ResponsiveDialogDescription>
-                  Buy-ins and cash-outs don&apos;t match. Are you sure you want to close this session with{" "}
-                  <span className="font-semibold text-destructive">{formatMoney(discrepancyAmount, currency)}</span> in discrepancy?
-                </ResponsiveDialogDescription>
-              </ResponsiveDialogHeader>
-              <div className="grid grid-cols-2 gap-3 py-2 text-center text-sm">
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-xs text-muted-foreground">In play</p>
-                  <p className="font-bold">{formatMoney(totalBuyIn, currency)}</p>
-                </div>
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-xs text-muted-foreground">Cashed out</p>
-                  <p className="font-bold">{formatMoney(totalCashOut, currency)}</p>
-                </div>
-              </div>
-              <ResponsiveDialogFooter>
-                <Button variant="ghost" onClick={() => setIsDiscrepancyDialogOpen(false)}>Go back</Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleEndSession(true)}
-                  disabled={completeSession.isPending}
-                >
-                  {completeSession.isPending ? "Closing…" : "Close session anyway"}
-                </Button>
-              </ResponsiveDialogFooter>
-            </ResponsiveDialogContent>
-          </ResponsiveDialog>
+          <DiscrepancyDialog
+            open={isDiscrepancyDialogOpen}
+            onOpenChange={setIsDiscrepancyDialogOpen}
+            title="Session doesn't balance"
+            description={
+              <>
+                Buy-ins and cash-outs don&apos;t match. Are you sure you want to close this session with{" "}
+                <span className="font-semibold text-destructive">{formatMoney(discrepancyAmount, currency)}</span> in discrepancy?
+              </>
+            }
+            confirmLabel="Close session anyway"
+            pendingLabel="Closing…"
+            isPending={completeSession.isPending}
+            onConfirm={() => handleEndSession(true)}
+            currency={currency}
+            totals={{
+              buyInLabel: "In play",
+              cashOutLabel: "Cashed out",
+              buyIn: totalBuyIn,
+              cashOut: totalCashOut,
+            }}
+          />
 
           <ResponsiveDialog open={isAddPlayerOpen} onOpenChange={setIsAddPlayerOpen}>
             <ResponsiveDialogContent className="sm:max-w-sm border-border/50 bg-card/80 backdrop-blur-xl">

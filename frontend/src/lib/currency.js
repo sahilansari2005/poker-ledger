@@ -1,5 +1,3 @@
-export const CURRENCY_STORAGE_KEY = "poker-ledger:default-currency"
-
 export const DEFAULT_CURRENCY = "GBP"
 
 export const CURRENCIES = [
@@ -17,32 +15,18 @@ export const CURRENCIES = [
   { code: "HKD", symbol: "HK$", name: "Hong Kong Dollar" },
 ]
 
-export const CURRENCY_CODES = CURRENCIES.map(c => c.code)
+export const CURRENCY_CODES = CURRENCIES.map((c) => c.code)
 
 export function getCurrency(code) {
-  return CURRENCIES.find(c => c.code === code) || CURRENCIES.find(c => c.code === DEFAULT_CURRENCY)
+  return CURRENCIES.find((c) => c.code === code) || CURRENCIES.find((c) => c.code === DEFAULT_CURRENCY)
 }
 
 export function getCurrencySymbol(code) {
   return getCurrency(code).symbol
 }
 
-export function loadDefaultCurrency() {
-  try {
-    const raw = localStorage.getItem(CURRENCY_STORAGE_KEY)
-    if (!raw) return DEFAULT_CURRENCY
-    return CURRENCY_CODES.includes(raw) ? raw : DEFAULT_CURRENCY
-  } catch {
-    return DEFAULT_CURRENCY
-  }
-}
-
-export function saveDefaultCurrency(code) {
-  localStorage.setItem(CURRENCY_STORAGE_KEY, code)
-}
-
-export function formatMoney(amount, currencyCode) {
-  const currency = getCurrency(currencyCode || loadDefaultCurrency())
+export function formatMoney(amount, currencyCode = DEFAULT_CURRENCY) {
+  const currency = getCurrency(currencyCode)
   const value = typeof amount === "number" ? amount : parseFloat(amount) || 0
   return `${currency.symbol}${value.toFixed(2)}`
 }
