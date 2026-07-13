@@ -4,14 +4,14 @@ import SectionPill from "@/components/reactbits/SectionPill"
 import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import { cn } from "@/lib/utils"
 
-/** Full-viewport loading state matching the dark shell + aurora chrome. */
+/** Full-viewport loading state matching the app shell + aurora chrome. */
 export default function AppLoadingScreen({ label = "Loading", className }) {
   const reduce = useReducedMotion()
 
   return (
     <div
       className={cn(
-        "dark relative flex min-h-[100dvh] flex-col overflow-hidden bg-background text-foreground",
+        "relative flex min-h-[100dvh] flex-col overflow-hidden bg-background text-foreground",
         className
       )}
       aria-busy="true"

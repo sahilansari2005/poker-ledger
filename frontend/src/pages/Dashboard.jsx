@@ -100,9 +100,9 @@ export default function Dashboard() {
                 <Badge variant="outline">+{(table.members || []).length - 4}</Badge>
               )}
             </div>
-            <div className="mt-auto border-t border-border/50 bg-muted/30 px-5 py-4">
+            <div className="mt-auto border-t border-border/60 bg-muted/40 px-5 py-4">
               <Link to={`/table/${table.id}`} className="w-full">
-                <Button variant="secondary" className="w-full">
+                <Button variant="secondary" className="w-full border border-border/50">
                   Open table
                   <ChevronRight className="size-4" />
                 </Button>

@@ -26,7 +26,7 @@ export default function SharedTablePage() {
 
   if (isError || !data) {
     return (
-      <div className="dark relative flex min-h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+      <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
         <AuroraBackdrop
           reduce={reduce}
           amplitude={0.75}
@@ -81,7 +81,7 @@ export default function SharedTablePage() {
   )
 
   return (
-    <div className="dark relative min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
       <AuroraBackdrop
         reduce={reduce}
         amplitude={0.75}

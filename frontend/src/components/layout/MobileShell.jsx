@@ -11,13 +11,18 @@ export default function MobileShell() {
   const hideNav = /^\/(table|session|summary)\//.test(pathname)
 
   return (
-    <div className="dark relative min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-background text-foreground">
       <AuroraBackdrop
         reduce={reduce}
-        amplitude={0.75}
-        blend={0.5}
-        speed={0.45}
-        className="pointer-events-none absolute inset-x-0 top-0 h-[42%]"
+        amplitude={0.55}
+        blend={0.35}
+        speed={0.4}
+        className="pointer-events-none absolute inset-x-0 top-0 h-[32%]"
+      />
+      {/* Soft wash so header captions stay readable over the aurora */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-40 bg-gradient-to-b from-background via-background/80 to-transparent"
       />
       <div
         className={cn(
