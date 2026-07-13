@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { Check, Copy, Download, Trash2 } from "lucide-react"
+import { Check, ChevronDown, Copy, Download, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,9 +9,11 @@ import PageHeader from "@/components/layout/PageHeader"
 import PageSkeleton from "@/components/layout/PageSkeleton"
 import SpotlightCard from "@/components/reactbits/SpotlightCard"
 import SectionPill from "@/components/reactbits/SectionPill"
+import PlayerAnalytics from "@/components/table/PlayerAnalytics"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import NotFoundState from "@/components/layout/NotFoundState"
 import { exportTableToJson } from "@/lib/tableExport"
+import { cn } from "@/lib/utils"
 import {
   useDeleteTable,
   useRemoveMembership,
@@ -47,6 +49,7 @@ export default function TableSettingsPage() {
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [labsOpen, setLabsOpen] = useState(false)
 
   useEffect(() => {
     if (!table) return
@@ -332,6 +335,29 @@ export default function TableSettingsPage() {
         pending={deleteTable.isPending}
         onConfirm={handleDeleteTable}
       />
+
+      {/* Hidden labs: player analytics — not part of the beta surface yet */}
+      <div className="pt-8 opacity-45 transition-opacity hover:opacity-80 focus-within:opacity-100">
+        <button
+          type="button"
+          onClick={() => setLabsOpen((open) => !open)}
+          className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-2 text-left text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          aria-expanded={labsOpen}
+        >
+          <span className="tracking-wide">Labs · player stats</span>
+          <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", labsOpen && "rotate-180")} />
+        </button>
+        {labsOpen && (
+          <div className="mt-2 rounded-xl border border-dashed border-border/50 bg-card/30 p-4">
+            <PlayerAnalytics
+              members={table.members || []}
+              sessions={sessions}
+              transfers={table.transfers || []}
+              currency={table.currency}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
