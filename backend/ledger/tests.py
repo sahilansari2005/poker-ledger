@@ -196,6 +196,36 @@ class SessionAPITests(TestCase):
         for player in players:
             self.assertEqual(player.total_buy_in, Decimal("0"))
 
+    def test_create_session_applies_initial_buy_ins(self):
+        response = self.client.post(
+            f"/api/tables/{self.table.id}/sessions/",
+            {
+                "player_names": ["Aryan", "DJ"],
+                "initial_buy_ins": ["20.00", "40.00"],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        session = Session.objects.get(id=response.json()["id"])
+        players = {
+            player.name: player.total_buy_in
+            for player in SessionPlayer.objects.filter(session=session)
+        }
+        self.assertEqual(players["Aryan"], Decimal("20.00"))
+        self.assertEqual(players["DJ"], Decimal("40.00"))
+
+    def test_create_session_rejects_mismatched_initial_buy_ins(self):
+        response = self.client.post(
+            f"/api/tables/{self.table.id}/sessions/",
+            {
+                "player_names": ["Aryan", "DJ"],
+                "initial_buy_ins": ["20.00"],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_add_buy_in_increments_player_total(self):
         session = Session.objects.create(table=self.table)
         player = SessionPlayer.objects.create(session=session, name="Aryan", total_buy_in="15.00")

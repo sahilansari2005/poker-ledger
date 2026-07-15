@@ -1,9 +1,9 @@
 import { memo } from "react"
 import { Minus, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import MoneyInput from "@/components/ui/MoneyInput"
 import { formatMoney } from "@/lib/currency"
 
 const CalculatorRow = memo(function CalculatorRow({
@@ -28,20 +28,14 @@ const CalculatorRow = memo(function CalculatorRow({
     <div className="space-y-4 border-b border-border/40 py-5 last:border-0 last:pb-0 first:pt-0">
       <div className="space-y-2">
         <Label className="text-caption">Value ({currencySymbol})</Label>
-        <div className="relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-            {currencySymbol}
-          </span>
-          <Input
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={value}
-            onChange={(e) => onUpdate(id, "value", e.target.value)}
-            className="pl-8"
-          />
-        </div>
+        <MoneyInput
+          currencySymbol={currencySymbol}
+          min="0"
+          step="0.01"
+          value={value}
+          onChange={(e) => onUpdate(id, "value", e.target.value)}
+          aria-label="Chip value"
+        />
       </div>
 
       <div className="space-y-2">

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { Monitor, Moon, Plus, Sun, Trash2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import MoneyInput from "@/components/ui/MoneyInput"
 import PageHeader from "@/components/layout/PageHeader"
 import CurrencySelect from "@/components/CurrencySelect"
 import AccountCard from "@/components/auth/AccountCard"
@@ -189,18 +189,14 @@ export default function SettingsPage() {
             <div key={index} className="flex items-end gap-3">
               <div className="flex-1 space-y-2">
                 <Label className="text-caption">Chip {index + 1} ({currencySymbol})</Label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">{currencySymbol}</span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.01"
-                    value={value}
-                    onChange={e => updateValue(index, e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
+                <MoneyInput
+                  currencySymbol={currencySymbol}
+                  min="0"
+                  step="0.01"
+                  value={value}
+                  onChange={e => updateValue(index, e.target.value)}
+                  aria-label={`Chip ${index + 1} value`}
+                />
               </div>
               <Button
                 variant="ghost"

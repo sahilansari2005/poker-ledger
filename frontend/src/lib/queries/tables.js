@@ -42,8 +42,11 @@ export function useUpdateTable(tableId) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ name, memberNames, currency }) =>
-      tablesApi.update(tableId, name, memberNames, currency),
+    mutationFn: ({ name, memberNames, currency, defaultBuyIn, defaultBuyInB }) =>
+      tablesApi.update(tableId, name, memberNames, currency, {
+        defaultBuyIn,
+        defaultBuyInB,
+      }),
     onSuccess: (updated) => {
       queryClient.setQueryData(queryKeys.table(tableId), updated)
       queryClient.invalidateQueries({ queryKey: queryKeys.tables })
@@ -55,7 +58,8 @@ export function useCreateSession(tableId) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ playerNames, date }) => tablesApi.createSession(tableId, playerNames, date),
+    mutationFn: ({ playerNames, date, initialBuyIns }) =>
+      tablesApi.createSession(tableId, playerNames, date, initialBuyIns),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tables", tableId, "sessions"] })
     },

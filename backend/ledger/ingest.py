@@ -60,6 +60,7 @@ def ingest_tables(user, tables_data, *, actor_id):
                 owner=user,
                 name=table_data["name"],
                 default_buy_in=table_data.get("default_buy_in", "20.00"),
+                default_buy_in_b=table_data.get("default_buy_in_b", "0"),
                 currency=table_data["currency"],
             )
 

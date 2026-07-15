@@ -74,13 +74,15 @@ export const tablesApi = {
       }),
     }),
 
-  update: (id, name, memberNames, currency) =>
+  update: (id, name, memberNames, currency, { defaultBuyIn, defaultBuyInB } = {}) =>
     request(`/tables/${id}/`, {
       method: "PUT",
       body: JSON.stringify({
         name,
         member_names: memberNames,
         currency,
+        ...(defaultBuyIn !== undefined ? { default_buy_in: defaultBuyIn } : {}),
+        ...(defaultBuyInB !== undefined ? { default_buy_in_b: defaultBuyInB } : {}),
       }),
     }),
 
@@ -91,12 +93,13 @@ export const tablesApi = {
     return request(`/tables/${tableId}/sessions/?${params}`)
   },
 
-  createSession: (tableId, playerNames, date) =>
+  createSession: (tableId, playerNames, date, initialBuyIns) =>
     request(`/tables/${tableId}/sessions/`, {
       method: "POST",
       body: JSON.stringify({
         player_names: playerNames,
         ...(date ? { date } : {}),
+        ...(initialBuyIns?.length ? { initial_buy_ins: initialBuyIns } : {}),
       }),
     }),
 

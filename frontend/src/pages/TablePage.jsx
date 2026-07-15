@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { Play, Users, Settings, ArrowDownWideNarrow, ArrowUpWideNarrow, MessageSquarePlus, LogOut } from "lucide-react"
+import { Play, Users, Settings, ArrowDownWideNarrow, ArrowUpWideNarrow, MessageSquarePlus, LogOut, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ResponsiveDialog,
@@ -18,6 +18,7 @@ import { todayIsoDate } from "@/lib/formatDate"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
 import { useSecretTaps } from "@/lib/hooks/useSecretTaps"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
+import { toAmount } from "@/lib/sessionBalance"
 import {
   useTable,
   useTableSessions,
@@ -35,6 +36,11 @@ import RaiseRequestDialog from "@/components/table/RaiseRequestDialog"
 import RequestsList from "@/components/table/RequestsList"
 import PlayerAnalytics from "@/components/table/PlayerAnalytics"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
+import StartBuyInPicker from "@/components/session/StartBuyInPicker"
+
+function buyInsConfigured(table) {
+  return toAmount(table?.default_buy_in) > 0 && toAmount(table?.default_buy_in_b) > 0
+}
 
 export default function TablePage() {
   const { id } = useParams()
@@ -55,6 +61,9 @@ export default function TablePage() {
   const [isStartDialogOpen, setIsStartDialogOpen] = useState(false)
   const [selectedMembers, setSelectedMembers] = useState([])
   const [sessionDate, setSessionDate] = useState(() => todayIsoDate())
+  const [buyInSelections, setBuyInSelections] = useState({})
+  const [otherDrafts, setOtherDrafts] = useState({})
+  const [startError, setStartError] = useState("")
 
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false)
   const [isLeaveOpen, setIsLeaveOpen] = useState(false)
@@ -76,29 +85,64 @@ export default function TablePage() {
 
   const members = table.members || []
   const openRequestCount = requests.filter((r) => r.status === "open").length
+  const defaultsReady = buyInsConfigured(table)
+  const optionA = toAmount(table.default_buy_in)
+  const optionB = toAmount(table.default_buy_in_b)
 
   const handleOpenNewSession = () => {
     setSelectedMembers([])
     setSessionDate(todayIsoDate())
+    setBuyInSelections({})
+    setOtherDrafts({})
+    setStartError("")
     setIsStartDialogOpen(true)
   }
 
   const toggleMember = (name) => {
-    setSelectedMembers((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
-    )
+    setSelectedMembers((prev) => {
+      if (prev.includes(name)) {
+        setBuyInSelections((sels) => {
+          const next = { ...sels }
+          delete next[name]
+          return next
+        })
+        setOtherDrafts((drafts) => {
+          const next = { ...drafts }
+          delete next[name]
+          return next
+        })
+        return prev.filter((n) => n !== name)
+      }
+      return [...prev, name]
+    })
   }
 
+  const allBuyInsReady =
+    selectedMembers.length > 0 &&
+    selectedMembers.every((name) => toAmount(buyInSelections[name]?.amount) > 0)
+
   const handleStartSession = () => {
+    if (!defaultsReady) {
+      setStartError("Set default buy-ins A and B in table settings before starting a session.")
+      return
+    }
     if (selectedMembers.length === 0) return
+    if (!allBuyInsReady) {
+      setStartError("Pick a buy-in for every selected player.")
+      return
+    }
+
+    setStartError("")
+    const initialBuyIns = selectedMembers.map((name) => String(buyInSelections[name].amount))
 
     createSession.mutate(
-      { playerNames: selectedMembers, date: sessionDate },
+      { playerNames: selectedMembers, date: sessionDate, initialBuyIns },
       {
         onSuccess: (newSession) => {
           setIsStartDialogOpen(false)
           navigate(`/session/${newSession.id}`)
         },
+        onError: (err) => setStartError(err.message),
       }
     )
   }
@@ -164,7 +208,7 @@ export default function TablePage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-section">Sessions</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -194,14 +238,14 @@ export default function TablePage() {
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <h2 className="text-section">Requests</h2>
               {openRequestCount > 0 && <Badge>{openRequestCount} open</Badge>}
             </div>
             {!isOwner && (
               <Button
                 variant="outline"
-                className="h-11 min-h-11 gap-1.5 rounded-xl"
+                className="h-11 min-h-11 shrink-0 gap-1.5 rounded-xl"
                 onClick={() => setIsRequestDialogOpen(true)}
               >
                 <MessageSquarePlus className="size-4" />
@@ -269,49 +313,147 @@ export default function TablePage() {
       <ResponsiveDialog open={isStartDialogOpen} onOpenChange={setIsStartDialogOpen}>
         <ResponsiveDialogContent className="border-border/50 bg-card/80 backdrop-blur-xl sm:max-w-lg">
           <ResponsiveDialogHeader className="pb-2">
-            <ResponsiveDialogTitle>Who&apos;s at the table?</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>Select the players participating in this session.</ResponsiveDialogDescription>
+            <ResponsiveDialogTitle>
+              {defaultsReady ? "Who's at the table?" : "Buy-ins not set"}
+            </ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>
+              {defaultsReady
+                ? "Select players and their starting buy-in."
+                : "Set default buy-ins A and B in table settings before starting a session."}
+            </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogBody className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {members.map((m) => {
-                const isSelected = selectedMembers.includes(m.name)
-                return (
-                  <Badge
-                    key={m.id}
-                    variant={isSelected ? "default" : "outline"}
-                    className="cursor-pointer px-4 py-2 transition-all active:scale-[0.98]"
-                    onClick={() => toggleMember(m.name)}
-                  >
-                    {m.name}
-                  </Badge>
-                )
-              })}
-              {members.length === 0 && (
-                <p className="text-sm italic text-muted-foreground">No members. Edit the table first.</p>
-              )}
-            </div>
-            <div className="space-y-2 border-t border-border/20 pt-4">
-              <Label htmlFor="new-session-date">Session date</Label>
-              <Input
-                id="new-session-date"
-                type="date"
-                value={sessionDate}
-                onChange={(e) => setSessionDate(e.target.value)}
-                className="h-11 bg-card"
-              />
-            </div>
+            {!defaultsReady ? (
+              <div className="flex gap-3 rounded-xl border border-destructive/30 bg-destructive/8 p-4 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <p>
+                  Default buy-ins A and B must both be greater than zero. Open table settings to
+                  configure them.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {members.map((m) => {
+                    const isSelected = selectedMembers.includes(m.name)
+                    return (
+                      <Badge
+                        key={m.id}
+                        variant={isSelected ? "default" : "outline"}
+                        className="cursor-pointer px-4 py-2 transition-all active:scale-[0.98]"
+                        onClick={() => toggleMember(m.name)}
+                      >
+                        {m.name}
+                      </Badge>
+                    )
+                  })}
+                  {members.length === 0 && (
+                    <p className="text-sm italic text-muted-foreground">No members. Edit the table first.</p>
+                  )}
+                </div>
+
+                {selectedMembers.length > 0 && (
+                  <div className="space-y-3 border-t border-border/20 pt-4">
+                    <Label>Starting buy-ins</Label>
+                    {selectedMembers.map((name) => (
+                      <StartBuyInPicker
+                        key={name}
+                        playerName={name}
+                        currency={table.currency}
+                        optionA={optionA}
+                        optionB={optionB}
+                        selection={buyInSelections[name]}
+                        draftOther={otherDrafts[name] || ""}
+                        onSelectPreset={(mode, amount) => {
+                          setStartError("")
+                          setBuyInSelections((prev) => ({
+                            ...prev,
+                            [name]: { mode, amount },
+                          }))
+                          setOtherDrafts((prev) => {
+                            const next = { ...prev }
+                            delete next[name]
+                            return next
+                          })
+                        }}
+                        onSelectOther={() => {
+                          setStartError("")
+                          setBuyInSelections((prev) => ({
+                            ...prev,
+                            [name]: { mode: "other", amount: 0 },
+                          }))
+                        }}
+                        onDraftOtherChange={(value) => {
+                          setOtherDrafts((prev) => ({ ...prev, [name]: value }))
+                        }}
+                        onConfirmOther={() => {
+                          const amount = toAmount(otherDrafts[name])
+                          if (amount <= 0) return
+                          setStartError("")
+                          setBuyInSelections((prev) => ({
+                            ...prev,
+                            [name]: { mode: "other", amount },
+                          }))
+                        }}
+                        onClearOther={() => {
+                          setOtherDrafts((prev) => ({ ...prev, [name]: "" }))
+                          setBuyInSelections((prev) => ({
+                            ...prev,
+                            [name]: { mode: "other", amount: 0 },
+                          }))
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-2 border-t border-border/20 pt-4">
+                  <Label htmlFor="new-session-date">Session date</Label>
+                  <Input
+                    id="new-session-date"
+                    type="date"
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                    className="h-11 bg-card"
+                  />
+                </div>
+              </>
+            )}
+            {startError && <p className="text-sm text-destructive">{startError}</p>}
           </ResponsiveDialogBody>
           <ResponsiveDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-            <span className="text-center text-sm text-muted-foreground sm:text-left">
-              {selectedMembers.length} selected
-            </span>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button variant="ghost" onClick={() => setIsStartDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleStartSession} disabled={selectedMembers.length === 0 || createSession.isPending}>
-                <Play className="mr-2 size-4" /> {createSession.isPending ? "Starting…" : "Start Game"}
-              </Button>
-            </div>
+            {!defaultsReady ? (
+              <>
+                <Button variant="ghost" onClick={() => setIsStartDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => navigate(`/table/${id}/settings`)}>
+                  <Settings className="mr-2 size-4" /> Open settings
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className="text-center text-sm text-muted-foreground sm:text-left">
+                  {selectedMembers.length} selected
+                </span>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <Button variant="ghost" onClick={() => setIsStartDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleStartSession}
+                    disabled={
+                      selectedMembers.length === 0 ||
+                      !allBuyInsReady ||
+                      createSession.isPending
+                    }
+                  >
+                    <Play className="mr-2 size-4" />
+                    {createSession.isPending ? "Starting…" : "Start Game"}
+                  </Button>
+                </div>
+              </>
+            )}
           </ResponsiveDialogFooter>
         </ResponsiveDialogContent>
       </ResponsiveDialog>

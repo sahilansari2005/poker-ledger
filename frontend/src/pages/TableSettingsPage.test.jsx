@@ -87,6 +87,8 @@ describe("TableSettingsPage", () => {
         id: 7,
         name: "Friday Night",
         currency: "GBP",
+        default_buy_in: "20.00",
+        default_buy_in_b: "40.00",
         role: "owner",
         members: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }],
       },
@@ -131,6 +133,8 @@ describe("TableSettingsPage", () => {
         name: "Saturday Night",
         memberNames: ["Alice", "Bob"],
         currency: "GBP",
+        defaultBuyIn: "20.00",
+        defaultBuyInB: "40.00",
       },
       expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) })
     )

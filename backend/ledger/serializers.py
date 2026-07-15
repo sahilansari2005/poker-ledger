@@ -72,6 +72,7 @@ class TableSerializer(serializers.ModelSerializer):
             "owner_email",
             "name",
             "default_buy_in",
+            "default_buy_in_b",
             "currency",
             "role",
             "members",
@@ -79,7 +80,7 @@ class TableSerializer(serializers.ModelSerializer):
             "member_names",
             "created_at",
         )
-        read_only_fields = ("id", "owner_id", "owner_name", "owner_email", "default_buy_in", "created_at")
+        read_only_fields = ("id", "owner_id", "owner_name", "owner_email", "created_at")
 
     def get_role(self, obj):
         request = self.context.get("request")
@@ -105,6 +106,10 @@ class TableSerializer(serializers.ModelSerializer):
         instance.name = validated_data.get("name", instance.name)
         if "currency" in validated_data:
             instance.currency = validated_data["currency"]
+        if "default_buy_in" in validated_data:
+            instance.default_buy_in = validated_data["default_buy_in"]
+        if "default_buy_in_b" in validated_data:
+            instance.default_buy_in_b = validated_data["default_buy_in_b"]
         instance.save()
 
         if member_names is not None:
@@ -143,17 +148,44 @@ class SessionSerializer(serializers.ModelSerializer):
         required=False,
         default=list,
     )
+    initial_buy_ins = serializers.ListField(
+        child=serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0")),
+        write_only=True,
+        required=False,
+        default=list,
+    )
 
     class Meta:
         model = Session
-        fields = ("id", "table", "table_currency", "date", "is_completed", "players", "player_names", "created_at")
+        fields = (
+            "id",
+            "table",
+            "table_currency",
+            "date",
+            "is_completed",
+            "players",
+            "player_names",
+            "initial_buy_ins",
+            "created_at",
+        )
         read_only_fields = ("id", "table", "is_completed", "created_at")
+
+    def validate(self, attrs):
+        player_names = attrs.get("player_names") or []
+        initial_buy_ins = attrs.get("initial_buy_ins") or []
+        if initial_buy_ins and len(initial_buy_ins) != len(player_names):
+            raise serializers.ValidationError(
+                {"initial_buy_ins": "Must match player_names length."}
+            )
+        return attrs
 
     def create(self, validated_data):
         player_names = validated_data.pop("player_names", [])
+        initial_buy_ins = validated_data.pop("initial_buy_ins", [])
         session = Session.objects.create(**validated_data)
-        for name in player_names:
-            SessionPlayer.objects.create(session=session, name=name)
+        for index, name in enumerate(player_names):
+            buy_in = initial_buy_ins[index] if index < len(initial_buy_ins) else Decimal("0")
+            SessionPlayer.objects.create(session=session, name=name, total_buy_in=buy_in)
         return session
 
 
@@ -181,7 +213,17 @@ class SharedTableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Table
         # Deliberately omits owner_id and share_token.
-        fields = ("id", "name", "owner_name", "default_buy_in", "currency", "members", "transfers", "created_at")
+        fields = (
+            "id",
+            "name",
+            "owner_name",
+            "default_buy_in",
+            "default_buy_in_b",
+            "currency",
+            "members",
+            "transfers",
+            "created_at",
+        )
         read_only_fields = fields
 
     def get_owner_name(self, obj):
@@ -287,6 +329,7 @@ class IngestTransferSerializer(serializers.Serializer):
 class IngestTableSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     default_buy_in = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False, default=Decimal("20.00"))
+    default_buy_in_b = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), required=False, default=Decimal("0"))
     currency = serializers.CharField(max_length=3)
     member_names = serializers.ListField(
         child=serializers.CharField(max_length=100),

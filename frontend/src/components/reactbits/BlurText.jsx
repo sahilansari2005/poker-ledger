@@ -50,17 +50,17 @@ const BlurText = ({
   const defaultFrom = useMemo(
     () =>
       direction === "top"
-        ? { filter: "blur(10px)", opacity: 0, y: -50 }
-        : { filter: "blur(10px)", opacity: 0, y: 50 },
+        ? { filter: "blur(6px)", opacity: 0, y: -8 }
+        : { filter: "blur(6px)", opacity: 0, y: 8 },
     [direction]
   )
 
   const defaultTo = useMemo(
     () => [
       {
-        filter: "blur(5px)",
-        opacity: 0.5,
-        y: direction === "top" ? 5 : -5,
+        filter: "blur(2px)",
+        opacity: 0.6,
+        y: direction === "top" ? 2 : -2,
       },
       { filter: "blur(0px)", opacity: 1, y: 0 },
     ],
@@ -75,7 +75,7 @@ const BlurText = ({
   const times = Array.from({ length: stepCount }, (_, i) => (stepCount === 1 ? 0 : i / (stepCount - 1)))
 
   return (
-    <p ref={ref} className={`blur-text ${className} flex flex-wrap`} {...rest}>
+    <p ref={ref} className={`blur-text ${className} flex flex-wrap gap-x-[0.3em] gap-y-1 leading-tight`} {...rest}>
       {elements.map((segment, index) => {
         const animateKeyframes = buildKeyframes(fromSnapshot, toSnapshots)
 
@@ -95,8 +95,7 @@ const BlurText = ({
             transition={spanTransition}
             onAnimationComplete={index === elements.length - 1 ? onAnimationComplete : undefined}
           >
-            {segment === " " ? " " : segment}
-            {animateBy === "words" && index < elements.length - 1 && " "}
+            {segment === " " ? "\u00A0" : segment}
           </motion.span>
         )
       })}

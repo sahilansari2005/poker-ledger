@@ -55,7 +55,7 @@ export default function BottomNav() {
                   )}
                   aria-hidden
                 />
-                <span className="leading-none">{label}</span>
+                <span className="max-w-full truncate leading-none">{label}</span>
               </>
             )}
           </NavLink>
