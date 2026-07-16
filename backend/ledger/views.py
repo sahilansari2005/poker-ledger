@@ -126,6 +126,7 @@ class TableViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         session = serializer.save(table=table)
         player_names = request.data.get("player_names", [])
+        initial_buy_ins = request.data.get("initial_buy_ins", [])
         log_session_audit(
             session,
             actor_id=str(viewer_id),
@@ -134,6 +135,7 @@ class TableViewSet(viewsets.ModelViewSet):
             details={
                 "date": str(session.date),
                 "player_names": player_names,
+                "initial_buy_ins": [str(amount) for amount in initial_buy_ins],
             },
         )
         cache.invalidate_table(_viewer_ids(table), table.id)

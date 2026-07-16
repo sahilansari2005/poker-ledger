@@ -1,7 +1,7 @@
 import { Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import MoneyInput from "@/components/ui/MoneyInput"
 
 export default function BuyInField({
   playerId,
@@ -24,25 +24,22 @@ export default function BuyInField({
         <span className="text-muted-foreground/70">(adds to current total)</span>
       </Label>
       <div className="flex gap-2">
-        <div className="relative flex-1">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-medium text-muted-foreground">
-            {currencySymbol}
-          </span>
-          <Input
-            type="number"
-            inputMode="decimal"
+        <div className="relative min-w-0 flex-1">
+          <MoneyInput
+            currencySymbol={currencySymbol}
             placeholder="0.00"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             disabled={disabled}
-            className="pl-8 pr-10"
+            inputClassName="pr-10"
+            aria-label={`Buy-in amount for ${playerName}`}
           />
           {hasValue && !disabled && (
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+              className="absolute right-1 top-1/2 z-[1] -translate-y-1/2 text-muted-foreground"
               onClick={onClear}
               aria-label={`Clear buy-in amount for ${playerName}`}
             >

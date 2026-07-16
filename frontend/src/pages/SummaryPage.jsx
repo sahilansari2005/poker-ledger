@@ -4,8 +4,8 @@ import { CheckCircle2, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import MoneyInput from "@/components/ui/MoneyInput"
 import DiscrepancyDialog from "@/components/session/DiscrepancyDialog"
 import { formatMoney, getCurrencySymbol } from "@/lib/currency"
 import { useAnimatedList } from "@/lib/hooks/useAnimatedList"
@@ -214,37 +214,27 @@ export default function SummaryPage() {
                   <CardContent className="grid gap-3 px-4 pb-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Buy-in</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
-                          {currencySymbol}
-                        </span>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          min="0"
-                          step="0.01"
-                          value={draft[p.id]?.buyIn ?? ""}
-                          onChange={(e) => updateDraft(p.id, "buyIn", e.target.value)}
-                          className="h-11 pl-8 font-semibold"
-                        />
-                      </div>
+                      <MoneyInput
+                        currencySymbol={currencySymbol}
+                        min="0"
+                        step="0.01"
+                        value={draft[p.id]?.buyIn ?? ""}
+                        onChange={(e) => updateDraft(p.id, "buyIn", e.target.value)}
+                        inputClassName="font-semibold"
+                        aria-label={`Buy-in for ${p.name}`}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Cash out</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
-                          {currencySymbol}
-                        </span>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          min="0"
-                          step="0.01"
-                          value={draft[p.id]?.cashOut ?? ""}
-                          onChange={(e) => updateDraft(p.id, "cashOut", e.target.value)}
-                          className="h-11 pl-8 font-semibold"
-                        />
-                      </div>
+                      <MoneyInput
+                        currencySymbol={currencySymbol}
+                        min="0"
+                        step="0.01"
+                        value={draft[p.id]?.cashOut ?? ""}
+                        onChange={(e) => updateDraft(p.id, "cashOut", e.target.value)}
+                        inputClassName="font-semibold"
+                        aria-label={`Cash out for ${p.name}`}
+                      />
                     </div>
                     <p className={`text-xs font-semibold sm:col-span-2 ${profitLossClass(net)}`}>
                       Net: {net > 0 ? "+" : ""}{formatMoney(net, currency)}

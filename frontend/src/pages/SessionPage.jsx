@@ -4,6 +4,7 @@ import { ShieldCheck, AlertCircle, Trash2, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import MoneyInput from "@/components/ui/MoneyInput"
 import { Badge } from "@/components/ui/badge"
 import {
   ResponsiveDialog,
@@ -202,14 +203,14 @@ export default function SessionPage() {
         <div ref={playerListRef} className="space-y-5">
           {session.players.map((p) => (
             <Card key={p.id}>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div className="flex items-center gap-3 font-medium">
-                  <div className="icon-well text-sm">
+              <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+                <div className="flex min-w-0 items-center gap-3 font-medium">
+                  <div className="icon-well shrink-0 text-sm">
                     {p.name.charAt(0).toUpperCase()}
                   </div>
-                  <span>{p.name}</span>
+                  <span className="truncate">{p.name}</span>
                 </div>
-                <Badge variant="outline" className="tabular-nums">
+                <Badge variant="outline" className="shrink-0 tabular-nums">
                   {formatMoney(p.total_buy_in, currency)}
                 </Badge>
               </CardHeader>
@@ -272,23 +273,20 @@ export default function SessionPage() {
             const net = val - toAmount(p.total_buy_in)
             return (
               <Card key={p.id}>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <span className="font-medium">{p.name}</span>
-                  <Badge variant="outline">In: {formatMoney(p.total_buy_in, currency)}</Badge>
+                <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+                  <span className="min-w-0 truncate font-medium">{p.name}</span>
+                  <Badge variant="outline" className="shrink-0">In: {formatMoney(p.total_buy_in, currency)}</Badge>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Label className="text-caption">Cash out</Label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-medium text-muted-foreground">{currencySymbol}</span>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Cash out amount"
-                      value={cashOutValues[p.id] || ""}
-                      onChange={(e) => setCashOutValues((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      className="pl-8 font-medium"
-                    />
-                  </div>
+                  <MoneyInput
+                    currencySymbol={currencySymbol}
+                    placeholder="Cash out amount"
+                    value={cashOutValues[p.id] || ""}
+                    onChange={(e) => setCashOutValues((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                    inputClassName="font-medium"
+                    aria-label={`Cash out for ${p.name}`}
+                  />
                   {cashOutValues[p.id] !== "" && (
                     <p className={`text-right text-sm font-medium ${profitLossClass(net)}`}>
                       Net: {net > 0 ? "+" : ""}{formatMoney(net, currency)}

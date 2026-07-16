@@ -45,6 +45,8 @@ export default function TableSettingsPage() {
   const [editName, setEditName] = useState("")
   const [editMembersStr, setEditMembersStr] = useState("")
   const [editCurrency, setEditCurrency] = useState("GBP")
+  const [editBuyInA, setEditBuyInA] = useState("")
+  const [editBuyInB, setEditBuyInB] = useState("")
   const [settingsError, setSettingsError] = useState("")
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -56,6 +58,8 @@ export default function TableSettingsPage() {
     setEditName(table.name)
     setEditMembersStr((table.members || []).map((m) => m.name).join(", "))
     setEditCurrency(table.currency || "GBP")
+    setEditBuyInA(String(table.default_buy_in ?? ""))
+    setEditBuyInB(String(table.default_buy_in_b ?? ""))
   }, [table])
 
   if (tableLoading && !table) return <PageSkeleton />
@@ -87,6 +91,14 @@ export default function TableSettingsPage() {
   const handleSaveTable = () => {
     setSettingsError("")
     setSaved(false)
+
+    const buyInA = parseFloat(editBuyInA)
+    const buyInB = parseFloat(editBuyInB)
+    if (Number.isNaN(buyInA) || buyInA <= 0 || Number.isNaN(buyInB) || buyInB <= 0) {
+      setSettingsError("Set both default buy-ins A and B to amounts greater than zero.")
+      return
+    }
+
     updateTable.mutate(
       {
         name: editName,
@@ -95,6 +107,8 @@ export default function TableSettingsPage() {
           .map((s) => s.trim())
           .filter(Boolean),
         currency: editCurrency,
+        defaultBuyIn: buyInA.toFixed(2),
+        defaultBuyInB: buyInB.toFixed(2),
       },
       {
         onSuccess: () => {
@@ -140,7 +154,7 @@ export default function TableSettingsPage() {
           <div className="space-y-1">
             <h2 className="text-base font-semibold">General</h2>
             <p className="text-sm text-muted-foreground">
-              Name, currency, and the regulars on this table.
+              Name, currency, default buy-ins, and the regulars on this table.
             </p>
           </div>
           <SectionPill text="Table" />
@@ -164,6 +178,39 @@ export default function TableSettingsPage() {
               className="bg-background/50"
             />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="table-buy-in-a">Buy-in A</Label>
+              <Input
+                id="table-buy-in-a"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                value={editBuyInA}
+                onChange={(e) => setEditBuyInA(e.target.value)}
+                placeholder="20.00"
+                className="h-11 bg-background/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="table-buy-in-b">Buy-in B</Label>
+              <Input
+                id="table-buy-in-b"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                value={editBuyInB}
+                onChange={(e) => setEditBuyInB(e.target.value)}
+                placeholder="40.00"
+                className="h-11 bg-background/50"
+              />
+            </div>
+          </div>
+          <p className="text-caption">
+            These appear as quick picks when you start a session.
+          </p>
           <div className="space-y-2">
             <Label htmlFor="table-members">Members</Label>
             <Input

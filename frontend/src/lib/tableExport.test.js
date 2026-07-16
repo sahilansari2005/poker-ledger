@@ -33,6 +33,7 @@ describe("tableExport", () => {
         {
           name: "Friday Night",
           default_buy_in: "0",
+          default_buy_in_b: "0",
           currency: "GBP",
           member_names: ["Alice", "Bob"],
           transfers: [

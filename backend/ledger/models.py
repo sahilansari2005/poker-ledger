@@ -35,6 +35,7 @@ class Table(models.Model):
     )
     name = models.CharField(max_length=255)
     default_buy_in = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    default_buy_in_b = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     currency = models.CharField(max_length=3, default="GBP")
     # Multi-use invite/share token. Null = sharing disabled. Generated with
     # secrets.token_urlsafe(32) in the share-link view action.
